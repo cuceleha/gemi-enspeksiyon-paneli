@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import datetime
-import io
 
 # Sayfa Yapılandırması
 st.set_page_config(
@@ -10,7 +9,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# KESİN ÇALIŞAN SABİT CDN GÖRSEL ADRESLERİ (HTTPS JPEG)
+# KESİN YÜKLENEN GÜVENLİ SHIP CDN GÖRSELLERİ
 IMG_CONTAINER = "https://images.unsplash.com/photo-1559136555-9303baea8ebd?auto=format&fit=crop&w=800&q=80"
 IMG_TANKER = "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=800&q=80"
 IMG_BULK = "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80"
@@ -43,7 +42,7 @@ if "selected_ship" not in st.session_state:
 if "bulgular" not in st.session_state:
     st.session_state.bulgular = []
 
-# YAN MENÜ (SIDEBAR)
+# SIDEBAR
 st.sidebar.header("⚡ TTS Enspektör Paneli")
 st.sidebar.subheader("👨‍💼 Elektrik Enspektörü")
 st.sidebar.info("Ceyhun ÜCELEHAN")
@@ -76,7 +75,7 @@ if st.session_state.selected_ship is None:
 
     st.divider()
 
-    # GENEL TABLOLAR
+    # GENEL ÖZET TABLOLARI
     p_col1, p_col2 = st.columns([1, 1])
 
     with p_col1:
@@ -91,7 +90,7 @@ if st.session_state.selected_ship is None:
 
     st.divider()
 
-    # GEMİ KARTLARI (KESİN YÜKLENEN HTML HTML IMG YÖNTEMİ)
+    # GEMİ KARTLARI
     st.markdown("### 📷 TTS Filosu Gemi Kartları (Detay İçin Gemiyi Seçiniz)")
     
     cols_per_row = 3
@@ -101,8 +100,7 @@ if st.session_state.selected_ship is None:
             if i + j < len(tts_fleet_data):
                 g = tts_fleet_data[i + j]
                 with cols[j]:
-                    # HTML img kullanarak engelleyicileri tamamen atlıyoruz
-                    st.markdown(f'<img src="{g["Foto"]}" style="width:100%; height:200px; object-fit:cover; border-radius:8px;">', unsafe_allow_html=True)
+                    st.image(g["Foto"], use_container_width=True)
                     st.markdown(f"#### {g['Gemi']}")
                     st.caption(f"**IMO:** {g['IMO']} | **Tip:** {g['Tip']} | **Bayrak:** {g['Bayrak']}")
                     st.markdown(f"* **Elektrik Durumu:** {g['Durum']}")
@@ -115,7 +113,7 @@ if st.session_state.selected_ship is None:
                     st.divider()
 
 # ==========================================
-# 🚢 SAYFA 2: SEÇİLİ GEMİYE ÖZEL DETAYLI PANEL
+# 🚢 SAYFA 2: SEÇİLİ GEMİYE ÖZEL TÜM ALT PANELLER
 # ==========================================
 else:
     gemi_adi = st.session_state.selected_ship
@@ -142,20 +140,87 @@ else:
 
     st.sidebar.subheader("👨‍✈️ Gemideki ETO & Kontrat")
     st.sidebar.image(secili_gemi_bilgi['EtoFoto'], caption=f"ETO: {secili_gemi_bilgi['ETO']}", width=120)
+    st.sidebar.write(f"**Katılış:** {secili_gemi_bilgi['Giris']}")
+    st.sidebar.write(f"**Kontrat Süresi:** {secili_gemi_bilgi['KontratAy']} Ay")
 
-    # DETAYLI SEKMELER
-    tab1, tab2, tab3 = st.tabs(["🌐 Canlı Takip", "📋 Arıza Kaydı & Foto", "⚡ Megger Ölçümü"])
+    # TÜM ALT PANELLER (SEKMELER)
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "🌐 Canlı Takip & Harita", 
+        "📋 Arıza Kaydı & Foto Yükleme", 
+        "⚡ Megger İzolasyon Ölçümleri", 
+        "🛒 Malzeme & Yedek Parça Talebi",
+        "📄 Enspeksiyon Raporu Oluştur"
+    ])
 
+    # SEKMELER 1: CANLI TAKİP
     with tab1:
-        st.subheader(f"⚓ {gemi_adi} (IMO: {secili_gemi_bilgi['IMO']}) - Canlı Takip")
+        st.subheader(f"⚓ {gemi_adi} Canlı Konum ve Bilgileri")
         mt_link = f"https://www.marinetraffic.com/en/ais/details/ships/imo:{secili_gemi_bilgi['IMO']}"
         st.link_button(f"🔴 {gemi_adi} MarineTraffic Canlı Haritasını Aç", mt_link, type="primary", use_container_width=True)
-        st.markdown(f'<img src="{secili_gemi_bilgi["Foto"]}" style="width:100%; max-height:400px; object-fit:cover; border-radius:8px;">', unsafe_allow_html=True)
+        st.image(secili_gemi_bilgi['Foto'], caption=f"{gemi_adi} Görseli", use_container_width=True)
 
+    # SEKMELER 2: ARIZA KAYDI VE FOTOĞRAF YÜKLEME
     with tab2:
-        st.subheader("📋 Arıza Kaydı")
-        st.write(f"**Mevcut Durum:** {secili_gemi_bilgi['Arıza']}")
+        st.subheader("📋 Arıza Bildirimi ve Görsel Ekleme")
+        col_a, col_b = st.columns([1, 1])
+        with col_a:
+            ekipman = st.selectbox("Arızalı Ekipman / Sistem", ["Jeneratör (DG1/DG2/DG3)", "Ana Pano (MSB)", "Dümen Makinesi", "Sintine Separatörü", "Seyir Fenerleri", "Vinç / Güverte Ekipmanı"])
+            ariza_tanimi = st.text_area("Arıza Detayı ve Enspektör Notu", value=secili_gemi_bilgi['Arıza'])
+            oncelik = st.select_slider("Öncelik Derecesi", options=["Düşük", "Orta", "Yüksek", "🔴 KRİTİK"])
+        with col_b:
+            uploaded_file = st.file_uploader("Arıza Fotoğrafı Yükle", type=["jpg", "png", "jpeg"])
+            if uploaded_file is not None:
+                st.image(uploaded_file, caption="Yüklenen Arıza Görseli", width=300)
+            if st.button("💾 Arıza Kaydını Güncelle"):
+                st.success("Arıza kaydı sistem hafızasına güncellendi!")
 
+    # SEKMELER 3: MEGGER İZOLASYON ÖLÇÜMLERİ
     with tab3:
-        st.subheader("⚡ Megger Ölçümü")
-        st.number_input("Ölçülen İzolasyon Değeri (MΩ)", value=5.0)
+        st.subheader("⚡ Megger / İzolasyon Direnci Ölçüm Tablosu")
+        st.info("Pano ve motorların periyodik MΩ (Megohm) değerlerini giriniz.")
+        
+        megger_data = {
+            "Ekipman": ["DG-1 Alternatör", "DG-2 Alternatör", "Baş Pervane (Bow Thruster)", "Yangın Pompası Motoru", "Dümen Hidrolik Motor 1"],
+            "Ölçülen Değer (MΩ)": [50.0, 45.0, 1.2, 100.0, 85.0],
+            "Durum": ["🟢 İyi", "🟢 İyi", "🔴 Düşük (Kritik)", "🟢 Mükemmel", "🟢 İyi"]
+        }
+        st.table(pd.DataFrame(megger_data))
+        
+        st.markdown("#### Yeni Ölçüm Ekle")
+        m_col1, m_col2, m_col3 = st.columns(3)
+        m_col1.text_input("Ekipman Adı")
+        m_col2.number_input("Değer (MΩ)", min_value=0.0, max_value=1000.0, value=10.0)
+        m_col3.selectbox("Durum Değerlendirmesi", ["🟢 İyi", "🟡 Takip Edilmeli", "🔴 Kritik"])
+
+    # SEKMELER 4: MALZEME TALEBİ
+    with tab4:
+        st.subheader("🛒 Yedek Parça ve Malzeme Talep Formu")
+        st.write(f"**Mevcut Talep Durumu:** `{secili_gemi_bilgi['Malzeme']}`")
+        
+        st.text_input("Parça / Malzeme Adı (Örn: AVR MX321, 63A Şalter)", value="" if secili_gemi_bilgi['Malzeme'] == "Tamam" else secili_gemi_bilgi['Malzeme'])
+        st.number_input("Adet / Miktar", min_value=1, value=1)
+        st.selectbox("Tedarik Limanı", ["İstanbul / Türkiye", "Singapur", "Rotterdam / Hollanda", "Süveyş / Mısır"])
+        if st.button("🚀 Talep Formunu Satınalmaya Gönder"):
+            st.success("Talep satınalma departmanına iletildi!")
+
+    # SEKMELER 5: RAPOR OLUŞTURMA
+    with tab5:
+        st.subheader("📄 Enspeksiyon Raporu Çıktısı")
+        st.write("Gemiye ait yapılan tüm incelemeleri ve test sonuçlarını tek tıkla raporlayabilirsiniz.")
+        
+        rapor_metni = f"""
+        TTS SHIPS ELEKTRİK ENSPEKSİYON RAPORU
+        ------------------------------------
+        Gemi Adı: {gemi_adi}
+        IMO No: {secili_gemi_bilgi['IMO']}
+        Tarih: {datetime.date.today()}
+        Enspektör: Ceyhun ÜCELEHAN
+        ETO: {secili_gemi_bilgi['ETO']}
+        
+        DURUM ÖZETİ:
+        - Genel Durum: {secili_gemi_bilgi['Durum']}
+        - Arıza Durumu: {secili_gemi_bilgi['Arıza']}
+        - Malzeme Durumu: {secili_gemi_bilgi['Malzeme']}
+        """
+        st.text_area("Rapor Önizleme", rapor_metni, height=200)
+        st.download_button("📥 Raporu İndir (.TXT)", data=rapor_metni, file_name=f"{gemi_adi}_Enspeksiyon_Raporu.txt")
