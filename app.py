@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import datetime
-import os
 
 # ---------------------------------------------------------
 # SAYFA YAPILANDIRMASI
@@ -14,132 +13,111 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
-# GÖRSEL KLASÖRÜ KONTROLÜ
-# ---------------------------------------------------------
-if not os.path.exists("assets"):
-    os.makedirs("assets")
-
-# ---------------------------------------------------------
-# YEREL VEYA YEDEK GÖRSEL YÖNETİMİ
-# ---------------------------------------------------------
-def get_image_path(image_filename):
-    local_path = os.path.join("assets", image_filename)
-    if os.path.exists(local_path):
-        return local_path
-    # Alternatif uzantı kontrolü (png/jpg)
-    base_name, _ = os.path.splitext(image_filename)
-    for ext in [".jpg", ".jpeg", ".png", ".JPG", ".PNG"]:
-        alt_path = os.path.join("assets", base_name + ext)
-        if os.path.exists(alt_path):
-            return alt_path
-    return "https://raw.githubusercontent.com/streamlit/streamlit/main/e2e/scripts/components_app/static/cat.jpg"
-
-# ---------------------------------------------------------
-# FİLO VERİ SETİ (Görsel isimleri güncellendi)
+# FİLO VERİ SETİ (Doğrudan Çalışan Gemi Görsel Bağlantılarıyla)
 # ---------------------------------------------------------
 tts_fleet_data = [
     {
         "Gemi": "M/V MED STAR", "IMO": "9337028", "Tip": "Container", "DWT": "27254", "GRT": "23633", 
         "Bayrak": "Panama", "Yıl": "2004", "LOA": "191.10 m", "Durum": "🟢 Operational", "ETO": "Ahmet YILMAZ", 
-        "Giris": "2026-06-15", "KontratAy": 4, "Foto": "med_star.jpg", 
+        "Giris": "2026-06-15", "KontratAy": 4, "Foto": "https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=600&auto=format&fit=crop&q=80", 
         "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Ahmet", 
         "Arıza": "None", "Malzeme": "OK", "Denetim": "2027-02-15"
     },
     {
         "Gemi": "M/T MOON STAR", "IMO": "9667928", "Tip": "Tanker", "DWT": "49997", "GRT": "29940", 
         "Bayrak": "Liberia", "Yıl": "2013", "LOA": "183 m", "Durum": "🔴 Critical", "ETO": "Mehmet KAYA", 
-        "Giris": "2026-04-01", "KontratAy": 6, "Foto": "moon_star.jpg", 
+        "Giris": "2026-04-01", "KontratAy": 6, "Foto": "https://images.unsplash.com/photo-1544816155-12df9643f363?w=600&auto=format&fit=crop&q=80", 
         "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Mehmet", 
         "Arıza": "DG1 AVR Failure", "Malzeme": "AVR MX321 Pending", "Denetim": "2026-10-15"
     },
     {
         "Gemi": "M/T KUZEY STAR II", "IMO": "9499175", "Tip": "Tanker", "DWT": "6107", "GRT": "4081", 
         "Bayrak": "Malta", "Yıl": "2020", "LOA": "108.10 m", "Durum": "🟡 Monitoring", "ETO": "Caner DEMİR", 
-        "Giris": "2026-08-10", "KontratAy": 4, "Foto": "kuzey_star_2.jpg", 
+        "Giris": "2026-08-10", "KontratAy": 4, "Foto": "https://images.unsplash.com/photo-1516116216657-54baf1068684?w=600&auto=format&fit=crop&q=80", 
         "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Caner", 
         "Arıza": "Bilge Sensor Monitoring", "Malzeme": "Requisition Sent", "Denetim": "2026-11-01"
     },
     {
         "Gemi": "M/V A380", "IMO": "9310915", "Tip": "Ro-Ro Cargo", "DWT": "1300", "GRT": "1285", 
         "Bayrak": "Liberia", "Yıl": "2003", "LOA": "75 m", "Durum": "🟢 Operational", "ETO": "Emre ŞAHİN", 
-        "Giris": "2026-07-20", "KontratAy": 5, "Foto": "A 380.png", 
+        "Giris": "2026-07-20", "KontratAy": 5, "Foto": "https://images.unsplash.com/photo-1524592724787-b0d08092d3e2?w=600&auto=format&fit=crop&q=80", 
         "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Emre", 
         "Arıza": "None", "Malzeme": "OK", "Denetim": "2027-01-10"
     },
     {
         "Gemi": "M/V AKBABA", "IMO": "9319478", "Tip": "Ro-Ro Cargo", "DWT": "1300", "GRT": "1281", 
         "Bayrak": "Liberia", "Yıl": "2004", "LOA": "75 m", "Durum": "🟢 Operational", "ETO": "Burak ÇELİK", 
-        "Giris": "2026-05-12", "KontratAy": 4, "Foto": "akbaba.jpg", 
+        "Giris": "2026-05-12", "KontratAy": 4, "Foto": "https://images.unsplash.com/photo-1494412574643-ff11b0a5c1c3?w=600&auto=format&fit=crop&q=80", 
         "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Burak", 
         "Arıza": "None", "Malzeme": "OK", "Denetim": "2026-12-20"
     },
     {
         "Gemi": "M/V ALEXANDRA I", "IMO": "8876340", "Tip": "Bulk Carrier", "DWT": "60054", "GRT": "4048", 
         "Bayrak": "Panama", "Yıl": "1991", "LOA": "138.40 m", "Durum": "🟢 Operational", "ETO": "Oğuz ÖZTÜRK", 
-        "Giris": "2026-06-01", "KontratAy": 4, "Foto": "alexandra_1.jpg", 
+        "Giris": "2026-06-01", "KontratAy": 4, "Foto": "https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=600&auto=format&fit=crop&q=80", 
         "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Oguz", 
         "Arıza": "None", "Malzeme": "Navigation Light Bulbs", "Denetim": "2027-03-05"
     },
     {
         "Gemi": "M/V ALENA", "IMO": "8857772", "Tip": "Bulk Carrier", "DWT": "60594", "GRT": "4848", 
         "Bayrak": "Panama", "Yıl": "1991", "LOA": "138.40 m", "Durum": "🟡 Monitoring", "ETO": "Serkan AYDIN", 
-        "Giris": "2026-04-15", "KontratAy": 6, "Foto": "alena.jpg", 
+        "Giris": "2026-04-15", "KontratAy": 6, "Foto": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80", 
         "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Serkan", 
         "Arıza": "Low Panel Insulation", "Malzeme": "Insulation Spray", "Denetim": "2026-10-28"
     },
     {
         "Gemi": "M/V ATLANTIC STAR", "IMO": "9473327", "Tip": "Bulk Carrier", "DWT": "75002", "GRT": "41074", 
         "Bayrak": "Liberia", "Yıl": "2011", "LOA": "225 m", "Durum": "🔴 Critical", "ETO": "Murat ASLAN", 
-        "Giris": "2026-03-10", "KontratAy": 6, "Foto": "atlantic_star.jpg", 
+        "Giris": "2026-03-10", "KontratAy": 6, "Foto": "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600&auto=format&fit=crop&q=80", 
         "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Murat", 
         "Arıza": "MSB Breaker (ACB) Trip", "Malzeme": "ACB Coil Set", "Denetim": "2026-10-02"
     },
     {
         "Gemi": "M/V PACIFIC STAR", "IMO": "9470387", "Tip": "Bulk Carrier", "DWT": "78128", "GRT": "41718", 
         "Bayrak": "Liberia", "Yıl": "2013", "LOA": "224.90 m", "Durum": "🟢 Operational", "ETO": "Volkan YILDIZ", 
-        "Giris": "2026-07-01", "KontratAy": 4, "Foto": "pacific_star.jpg", 
+        "Giris": "2026-07-01", "KontratAy": 4, "Foto": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&auto=format&fit=crop&q=80", 
         "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Volkan", 
         "Arıza": "None", "Malzeme": "OK", "Denetim": "2027-04-12"
     },
     {
         "Gemi": "M/V CHIEF SEATTLE", "IMO": "9230751", "Tip": "Bulk Carrier", "DWT": "52428", "GRT": "30174", 
         "Bayrak": "Panama", "Yıl": "2001", "LOA": "189.99 m", "Durum": "🟢 Operational", "ETO": "Hasan ERDOĞAN", 
-        "Giris": "2026-08-01", "KontratAy": 5, "Foto": "chief_seattle.jpg", 
+        "Giris": "2026-08-01", "KontratAy": 5, "Foto": "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&auto=format&fit=crop&q=80", 
         "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Hasan", 
         "Arıza": "None", "Malzeme": "OK", "Denetim": "2027-05-18"
     },
     {
         "Gemi": "M/V VENUS STAR", "IMO": "9609134", "Tip": "Bulk Carrier", "DWT": "80888", "GRT": "44025", 
         "Bayrak": "Liberia", "Yıl": "2013", "LOA": "229 m", "Durum": "🟢 Operational", "ETO": "Ali ÖZKAN", 
-        "Giris": "2026-06-20", "KontratAy": 4, "Foto": "venus_star.jpg", 
+        "Giris": "2026-06-20", "KontratAy": 4, "Foto": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&auto=format&fit=crop&q=80", 
         "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Ali", 
         "Arıza": "None", "Malzeme": "OK", "Denetim": "2027-02-22"
     },
     {
         "Gemi": "M/V MERCUR STAR", "IMO": "9609287", "Tip": "Bulk Carrier", "DWT": "79520", "GRT": "43501", 
         "Bayrak": "Malta", "Yıl": "2015", "LOA": "229 m", "Durum": "🟢 Operational", "ETO": "Tolga TEKİN", 
-        "Giris": "2026-07-10", "KontratAy": 4, "Foto": "mercur_star.jpg", 
+        "Giris": "2026-07-10", "KontratAy": 4, "Foto": "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=600&auto=format&fit=crop&q=80", 
         "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Tolga", 
         "Arıza": "None", "Malzeme": "OK", "Denetim": "2027-01-30"
     },
     {
         "Gemi": "M/V DENİZ STAR", "IMO": "1071472", "Tip": "General Cargo", "DWT": "8300", "GRT": "6641", 
         "Bayrak": "Liberia", "Yıl": "2025", "LOA": "142 m", "Durum": "🟢 Operational", "ETO": "Onur KOÇ", 
-        "Giris": "2026-08-15", "KontratAy": 4, "Foto": "deniz_star.jpg", 
+        "Giris": "2026-08-15", "KontratAy": 4, "Foto": "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=600&auto=format&fit=crop&q=80", 
         "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Onur", 
         "Arıza": "None", "Malzeme": "OK", "Denetim": "2027-06-10"
     },
     {
         "Gemi": "M/V BLACKSEA STAR", "IMO": "1114901", "Tip": "General Cargo", "DWT": "8330", "GRT": "6732", 
         "Bayrak": "Liberia", "Yıl": "2025", "LOA": "142 m", "Durum": "🟢 Operational", "ETO": "Kaan YILMAZ", 
-        "Giris": "2026-07-25", "KontratAy": 4, "Foto": "blacksea_star.jpg", 
+        "Giris": "2026-07-25", "KontratAy": 4, "Foto": "https://images.unsplash.com/photo-1426604966848-d7adac902bff?w=600&auto=format&fit=crop&q=80", 
         "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Kaan", 
         "Arıza": "None", "Malzeme": "OK", "Denetim": "2027-07-01"
     },
     {
         "Gemi": "M/V SAPHIRA", "IMO": "7924425", "Tip": "Live Stock", "DWT": "12900", "GRT": "38988", 
         "Bayrak": "Antigua-Barbuda", "Yıl": "1995", "LOA": "185.82 m", "Durum": "🟡 Monitoring", "ETO": "Zafer GÜNEŞ", 
-        "Giris": "2026-05-01", "KontratAy": 5, "Foto": "saphira.jpg", 
+        "Giris": "2026-05-01", "KontratAy": 5, "Foto": "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=600&auto=format&fit=crop&q=80", 
         "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Zafer", 
         "Arıza": "Ventilation Fan Monitoring", "Malzeme": "Contactor Set", "Denetim": "2026-11-15"
     }
@@ -148,7 +126,7 @@ tts_fleet_data = [
 df_fleet = pd.DataFrame(tts_fleet_data)
 
 # ---------------------------------------------------------
-# SESSION STATE (OTURUM DURUMU TAKİBİ)
+# SESSION STATE
 # ---------------------------------------------------------
 if "selected_ship" not in st.session_state:
     st.session_state.selected_ship = None
@@ -240,8 +218,7 @@ if st.session_state.selected_ship is None:
             if i + j < len(tts_fleet_data):
                 g = tts_fleet_data[i + j]
                 with cols[j]:
-                    img_src = get_image_path(g["Foto"])
-                    st.image(img_src, caption=f"{g['Gemi']} ({g['Tip']})", use_container_width=True)
+                    st.image(g["Foto"], caption=f"{g['Gemi']} ({g['Tip']})", use_container_width=True)
                     
                     st.markdown(f"### {g['Gemi']}")
                     st.caption(f"**IMO:** {g['IMO']} | **Type:** {g['Tip']} | **Flag:** {g['Bayrak']}")
@@ -301,7 +278,7 @@ else:
         
         c_col1, c_col2 = st.columns([2, 1])
         with c_col1:
-            st.image(get_image_path(secili_gemi["Foto"]), caption=f"{gemi_adi} Image", use_container_width=True)
+            st.image(secili_gemi["Foto"], caption=f"{gemi_adi} Image", use_container_width=True)
         with c_col2:
             st.markdown("#### 📍 Last Reported Status")
             st.write(f"**Last Inspection:** {secili_gemi['Denetim']}")
