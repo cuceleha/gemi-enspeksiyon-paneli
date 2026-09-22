@@ -13,7 +13,7 @@ st.set_page_config(
 
 # Başlık ve Açıklama
 st.title("⚡ TTS Ships - Gemi Elektrik Enspeksiyon & Filo Yönetim Paneli")
-st.markdown("MarineTraffic entegrasyonu, megger kayıtları, PSC kontrol listesi, yedek parça takibi ve PDF raporlama paneli.")
+st.markdown("MarineTraffic entegrasyonu, megger kayıtları, PSC kontrol listesi, yedek parça takibi, ETO personel yönetimi ve PDF raporlama paneli.")
 
 # TTS Ships Filo Verileri
 tts_fleet_data = [
@@ -89,7 +89,7 @@ else:
     durum_renk = "🟢 Kontrat Devam Ediyor"
     oran = min(1.0, max(0.0, gecen_gun / toplam_gun))
 
-# KONTRAT BİLGİLERİ TABLOSU (KATILIŞ, BİTİŞ, KALAN GÜN)
+# KONTRAT BİLGİLERİ TABLOSU
 st.sidebar.markdown("### ⏳ Kontrat Durumu")
 st.sidebar.progress(oran)
 
@@ -105,8 +105,9 @@ tarih = st.sidebar.date_input("Denetim Tarihi", datetime.date.today())
 st.sidebar.divider()
 
 # ANA SEKMELER
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🌐 Canlı Takip", 
+    "👨‍✈️ Elektrik Zabitleri (ETO)",
     "📋 Arıza Kaydı & Fotoğraf", 
     "⚡ Megger (İzolasyon)",
     "📝 PSC Kontrol Listesi",
@@ -127,8 +128,105 @@ with tab1:
         st.metric("Gemi Tipi", secili_gemi_bilgi['Tip'])
         st.metric("Elektrik Durumu", secili_gemi_bilgi['Durum'])
 
-# TAB 2: ARIZA KAYDI
+# TAB 2: ELEKTRİK ZABİTLERİ VE YEDEK PERSONEL (YENİ SEKMELER)
 with tab2:
+    st.subheader("👨‍✈️ Şirket Elektrik Zabitleri (ETO) & Performans Değerlendirme Tablosu")
+    st.write("Şirket bünyesinde gemilerde görev yapan ve yedekte (izinde) bekleyen tüm Elektrik Zabitlerinin özet durumu:")
+
+    # GEMİDEKİ ETO'LAR
+    eto_gemide_listesi = []
+    for item in tts_fleet_data:
+        k_tarih = datetime.datetime.strptime(item['Giris'], "%Y-%m-%d").date()
+        b_tarih = k_tarih + datetime.timedelta(days=int(item['KontratAy']) * 30)
+        k_gun = (b_tarih - datetime.date.today()).days
+        if k_gun < 0: k_gun = 0
+
+        # Temsili skor ve yetkinlik verileri
+        eto_gemide_listesi.append({
+            "Durum": "🚢 Gemide",
+            "Adı Soyadı": item['ETO'],
+            "Görevli Olduğu Gemi": item['Gemi'],
+            "Katılış Tarihi": k_tarih.strftime('%d.%m.%Y'),
+            "Kontrat Sonu": b_tarih.strftime('%d.%m.%Y'),
+            "Kalan Gün": f"{k_gun} Gün",
+            "Performans Skoru": "⭐ 4.8 / 5.0",
+            "Başarılı Olduğu Konular": "PLC Otomasyon, Alternatör Bakımı, Jeneratör AVR",
+            "Geliştirilmesi Gereken Alanlar": "Gemi İçi Telsiz/VHF Sistemleri",
+            "Sertifika / Eğitim": "High Voltage (HV) Geçerli"
+        })
+
+    # YEDEK/KARADAKİ ETO'LAR
+    eto_yedek_listesi = [
+        {
+            "Durum": "🏖️ Yedekte (İzinde)",
+            "Adı Soyadı": "Cemal TOPAL",
+            "Görevli Olduğu Gemi": "— (Katılış Bekliyor)",
+            "Katılış Tarihi": "—",
+            "Kontrat Sonu": "—",
+            "Kalan Gün": "Hazır (Müsait)",
+            "Performans Skoru": "⭐ 4.6 / 5.0",
+            "Başarılı Olduğu Konular": "Vinç Panoları, İzolasyon Arıza Bulma",
+            "Geliştirilmesi Gereken Alanlar": "Sertifikasyon Yenileme",
+            "Sertifika / Eğitim": "HV Sertifikası Var (Yenilenmeli)"
+        },
+        {
+            "Durum": "🏖️ Yedekte (İzinde)",
+            "Adı Soyadı": "Metin YILDIZ",
+            "Görevli Olduğu Gemi": "— (Katılış Bekliyor)",
+            "Katılış Tarihi": "—",
+            "Kontrat Sonu": "—",
+            "Kalan Gün": "Hazır (Müsait)",
+            "Performans Skoru": "⭐ 4.9 / 5.0",
+            "Başarılı Olduğu Konular": "Dümen Sistemleri, MSB Şalter Bakımı",
+            "Geliştirilmesi Gereken Alanlar": "İngilizce Raporlama",
+            "Sertifika / Eğitim": "HV + DP Maintenance"
+        },
+        {
+            "Durum": "🏖️ Yedekte (Eğitimde)",
+            "Adı Soyadı": "Selim ERDEN",
+            "Görevli Olduğu Gemi": "— (Kurs Aşamasında)",
+            "Katılış Tarihi": "—",
+            "Kontrat Sonu": "—",
+            "Kalan Gün": "15 Gün Sonra Müsait",
+            "Performans Skoru": "⭐ 4.3 / 5.0",
+            "Başarılı Olduğu Konular": "Akü Sistemleri, Aydınlatma & Fenerler",
+            "Geliştirilmesi Gereken Alanlar": "PLC Yazılımı",
+            "Sertifika / Eğitim": "HV Eğitimi Devam Ediyor"
+        }
+    ]
+
+    df_tum_eto = pd.DataFrame(eto_gemide_listesi + eto_yedek_listesi)
+
+    # ÖZET METRİKLER
+    col_m1, col_m2, col_m3 = st.columns(3)
+    col_m1.metric("Toplam Elektrik Zabiti", len(df_tum_eto))
+    col_m2.metric("Gemide Aktif Çalışan", len(eto_gemide_listesi))
+    col_m3.metric("Yedekte / Göreve Hazır", len(eto_yedek_listesi))
+
+    st.divider()
+
+    # FİLTRELEME SEÇENEĞİ
+    filtre = st.radio("Listeleme Filtresi:", ["Hepsini Göster", "Sadece Gemidekiler", "Sadece Yedektekiler"], horizontal=True)
+
+    if filtre == "Sadece Gemidekiler":
+        df_goster = df_tum_eto[df_tum_eto["Durum"] == "🚢 Gemide"]
+    elif filtre == "Sadece Yedektekiler":
+        df_goster = df_tum_eto[df_tum_eto["Durum"].str.contains("Yedekte")]
+    else:
+        df_goster = df_tum_eto
+
+    st.dataframe(
+        df_goster,
+        use_container_width=True,
+        column_config={
+            "Performans Skoru": st.column_config.TextColumn("Performans"),
+            "Adı Soyadı": st.column_config.TextColumn("ETO Adı Soyadı", help="Elektrik Zabiti"),
+            "Görevli Olduğu Gemi": st.column_config.TextColumn("Atandığı Gemi")
+        }
+    )
+
+# TAB 3: ARIZA KAYDI
+with tab3:
     st.subheader(f"🛠️ {gemi_adi} - Elektrik Arıza Kaydı Formu")
     col1, col2 = st.columns(2)
     with col1:
@@ -161,8 +259,8 @@ with tab2:
         })
         st.success(f"{gemi_adi} için bulgu kaydı veritabanına eklendi!")
 
-# TAB 3: MEGGER TESTİ
-with tab3:
+# TAB 4: MEGGER TESTİ
+with tab4:
     st.subheader(f"⚡ {gemi_adi} - İzolasyon Direnci (Megger) Ölçümü")
     st.info("💡 Standart: 440V AC sistemler için minimum kabul edilebilir izolasyon değeri **1.0 MΩ**'dur.")
     m_col1, m_col2, m_col3 = st.columns(3)
@@ -178,8 +276,8 @@ with tab3:
         else:
             st.success("🟢 İZOLASYON SAĞLIKLI (Normal)")
 
-# TAB 4: PSC CHECKLIST
-with tab4:
+# TAB 5: PSC CHECKLIST
+with tab5:
     st.subheader(f"📝 {gemi_adi} - PSC & Class Elektrik Denetim Kontrol Listesi")
     st.write("Liman Devleti Kontrolü (PSC) öncesi onaylanması gereken kritik elektrik maddeleri:")
     
@@ -194,8 +292,8 @@ with tab4:
     st.progress(onay_sayisi / 6)
     st.write(f"**Tamamlanan Kontrol:** {onay_sayisi} / 6")
 
-# TAB 5: YEDEK PARÇA TAKİBİ
-with tab5:
+# TAB 6: YEDEK PARÇA TAKİBİ
+with tab6:
     st.subheader("📦 Kritik Elektrik Yedek Parça Stok Durumu")
     yedek_data = [
         {"Parça Adı": "Otomatik Voltaj Regülatörü (AVR)", "Ekipman": "DG1 / DG2 Alternatör", "Stok Adedi": 2, "Kritik Stok": 1, "Durum": "🟢 Yeterli"},
@@ -205,8 +303,8 @@ with tab5:
     ]
     st.dataframe(pd.DataFrame(yedek_data), use_container_width=True)
 
-# TAB 6: RAPORLAMA & PDF/EXCEL
-with tab6:
+# TAB 7: RAPORLAMA & PDF/EXCEL
+with tab7:
     st.subheader("📊 Filo Denetim Raporlama ve Dışa Aktarma")
     
     if len(st.session_state.bulgular) > 0:
