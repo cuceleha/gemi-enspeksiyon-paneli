@@ -14,16 +14,28 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
+# GÖRSEL KLASÖRÜ KONTROLÜ
+# ---------------------------------------------------------
+if not os.path.exists("assets"):
+    os.makedirs("assets")
+
+# ---------------------------------------------------------
 # YEREL VEYA YEDEK GÖRSEL YÖNETİMİ
 # ---------------------------------------------------------
 def get_image_path(image_filename):
     local_path = os.path.join("assets", image_filename)
     if os.path.exists(local_path):
         return local_path
+    # Alternatif uzantı kontrolü (png/jpg)
+    base_name, _ = os.path.splitext(image_filename)
+    for ext in [".jpg", ".jpeg", ".png", ".JPG", ".PNG"]:
+        alt_path = os.path.join("assets", base_name + ext)
+        if os.path.exists(alt_path):
+            return alt_path
     return "https://raw.githubusercontent.com/streamlit/streamlit/main/e2e/scripts/components_app/static/cat.jpg"
 
 # ---------------------------------------------------------
-# GÜNCELLENMİŞ VE İNGİLİZCE STANDARTLARINA UYGUN FİLO VERİ SETİ (15 GEMİ)
+# FİLO VERİ SETİ (Görsel isimleri güncellendi)
 # ---------------------------------------------------------
 tts_fleet_data = [
     {
@@ -50,7 +62,7 @@ tts_fleet_data = [
     {
         "Gemi": "M/V A380", "IMO": "9310915", "Tip": "Ro-Ro Cargo", "DWT": "1300", "GRT": "1285", 
         "Bayrak": "Liberia", "Yıl": "2003", "LOA": "75 m", "Durum": "🟢 Operational", "ETO": "Emre ŞAHİN", 
-        "Giris": "2026-07-20", "KontratAy": 5, "Foto": "a380.jpg", 
+        "Giris": "2026-07-20", "KontratAy": 5, "Foto": "A 380.png", 
         "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Emre", 
         "Arıza": "None", "Malzeme": "OK", "Denetim": "2027-01-10"
     },
@@ -381,7 +393,7 @@ else:
         
         rapor_taslak = f"""
 ====================================================================
-               TTS SHIPS ELECTRICAL INSPECTION REPORT
+            TTS SHIPS ELECTRICAL INSPECTION REPORT
 ====================================================================
 DATE        : {datetime.date.today().strftime('%d.%m.%Y')}
 INSPECTOR   : Ceyhun ÜCELEHAN
