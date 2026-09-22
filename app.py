@@ -13,7 +13,7 @@ st.set_page_config(
 
 # Başlık ve Açıklama
 st.title("⚡ TTS Ships - Gemi Elektrik Enspeksiyon & Filo Yönetim Paneli")
-st.markdown("MarineTraffic entegrasyonu, megger kayıtları, PSC kontrol listesi, yedek parça takibi, ETO personel yönetimi ve PDF raporlama paneli.")
+st.markdown("MarineTraffic entegrasyonu, sertifika/sürvey takibi, megger kayıtları, PSC kontrol listesi, yedek parça takibi, ETO personel yönetimi ve PDF raporlama paneli.")
 
 # TTS Ships Filo Verileri
 tts_fleet_data = [
@@ -105,8 +105,9 @@ tarih = st.sidebar.date_input("Denetim Tarihi", datetime.date.today())
 st.sidebar.divider()
 
 # ANA SEKMELER
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "🌐 Canlı Takip", 
+    "📜 Sertifika & Class Sürvey",
     "👨‍✈️ Elektrik Zabitleri (ETO)",
     "📋 Arıza Kaydı & Fotoğraf", 
     "⚡ Megger (İzolasyon)",
@@ -128,12 +129,85 @@ with tab1:
         st.metric("Gemi Tipi", secili_gemi_bilgi['Tip'])
         st.metric("Elektrik Durumu", secili_gemi_bilgi['Durum'])
 
-# TAB 2: ELEKTRİK ZABİTLERİ VE YEDEK PERSONEL (YENİ SEKMELER)
+# TAB 2: SERTİFİKA & CLASS SÜRVEY TAKİP PANENLİ (YENİ SEKMELER)
 with tab2:
+    st.subheader(f"📜 {gemi_adi} - Sertifika & Yasal Belge / Sürvey Takip Paneli")
+    st.markdown("Class (RINA/NKK/BV/ABS), Bayrak Devleti ve Yasal Elektrik Ekipmanı Sertifikalarının Son Kullanma Tarihleri:")
+
+    # ÖRNEK SERTİFİKA VE SÜRVEY VERİLERİ
+    sertifika_listesi = [
+        {"Belge Adı": "Annual Electrical Class Survey", "Kategori": "Class Sürvey", "Duzenleyen": "Class / RINA", "SonTarih": "2026-10-15"},
+        {"Belge Adı": "Seyir Fenerleri Tip Onay Sertifikası", "Kategori": "Ekipman Sertifikası", "Duzenleyen": "Glamox / DNV", "SonTarih": "2026-11-20"},
+        {"Belge Adı": "Megger & Ölçüm Cihazları Kalibrasyonu", "Kategori": "Kalibrasyon", "Duzenleyen": "Akredite Laboratuvar", "SonTarih": "2026-10-02"},
+        {"Belge Adı": "Filika Motoru & Akü Grubu Test Raporu", "Kategori": "Güvenlik / SOLAS", "Duzenleyen": "Yetkili Servis", "SonTarih": "2027-04-10"},
+        {"Belge Adı": "Ana Dağıtım Panosu (MSB) Termografik Test", "Kategori": "Kestirimci Bakım", "Duzenleyen": "Enspektör / Servis", "SonTarih": "2026-09-30"},
+        {"Belge Adı": "Gemi İçi Telsiz & GMDSS Akü Sertifikası", "Kategori": "Bayrak / Class", "Duzenleyen": "Radio Surveyor", "SonTarih": "2027-01-15"},
+        {"Belge Adı": "Körleme / İzolasyon Test Onay Belgesi", "Kategori": "Güvenlik", "Duzenleyen": "Tersane / Class", "SonTarih": "2028-06-01"},
+    ]
+
+    islenmis_sertifikalar = []
+    bugun_tarih = datetime.date.today()
+
+    kritik_sayisi = 0
+    takip_sayisi = 0
+    uygun_sayisi = 0
+
+    for item in sertifika_listesi:
+        son_t = datetime.datetime.strptime(item["SonTarih"], "%Y-%m-%d").date()
+        k_gun = (son_t - bugun_tarih).days
+
+        if k_gun <= 30:
+            durum_etiket = "🔴 KRİTİK (<30 Gün)"
+            kritik_sayisi += 1
+        elif k_gun <= 90:
+            durum_etiket = "🟡 TAKİPTE (30-90 Gün)"
+            takip_sayisi += 1
+        else:
+            durum_etiket = "🟢 UYGUN (>90 Gün)"
+            uygun_sayisi += 1
+
+        islenmis_sertifikalar.append({
+            "Durum Alarmı": durum_etiket,
+            "Belge / Sürvey Adı": item["Belge Adı"],
+            "Kategori": item["Kategori"],
+            "Düzenleyen Kurum": item["Duzenleyen"],
+            "Son Geçerlilik Tarihi": son_t.strftime('%d.%m.%Y'),
+            "Kalan Süre": f"{k_gun} Gün" if k_gun >= 0 else "🔴 SÜRESİ DOLDU"
+        })
+
+    df_cert = pd.DataFrame(islenmis_sertifikalar)
+
+    # METRİKLER
+    c_m1, c_m2, c_m3, c_m4 = st.columns(4)
+    c_m1.metric("Toplam Sertifika / Sürvey", len(df_cert))
+    c_m2.metric("🔴 Kritik (Son 30 Gün)", kritik_sayisi)
+    c_m3.metric("🟡 Yaklaşan (30-90 Gün)", takip_sayisi)
+    c_m4.metric("🟢 Geçerli (>90 Gün)", uygun_sayisi)
+
+    st.divider()
+
+    # YENİ SERTİFİKA EKLEME FORMU
+    with st.expander("➕ Yeni Sertifika / Sürvey Kaydı Ekle"):
+        col_c1, col_c2, col_c3 = st.columns(3)
+        with col_c1:
+            y_belge = st.text_input("Belge / Sürvey Adı")
+            y_kat = st.selectbox("Kategori", ["Class Sürvey", "Ekipman Sertifikası", "Kalibrasyon", "Güvenlik / SOLAS", "Bayrak / Class"])
+        with col_c2:
+            y_kurum = st.text_input("Düzenleyen Kurum / Servis")
+            y_tarih = st.date_input("Son Geçerlilik Tarihi", datetime.date.today() + datetime.timedelta(days=365))
+        with col_c3:
+            st.write(" ")
+            st.write(" ")
+            if st.button("Sertifikayı Kaydet", use_container_width=True):
+                st.success(f"'{y_belge}' sertifikası veritabanına eklendi!")
+
+    st.dataframe(df_cert, use_container_width=True)
+
+# TAB 3: ELEKTRİK ZABİTLERİ (ETO)
+with tab3:
     st.subheader("👨‍✈️ Şirket Elektrik Zabitleri (ETO) & Performans Değerlendirme Tablosu")
     st.write("Şirket bünyesinde gemilerde görev yapan ve yedekte (izinde) bekleyen tüm Elektrik Zabitlerinin özet durumu:")
 
-    # GEMİDEKİ ETO'LAR
     eto_gemide_listesi = []
     for item in tts_fleet_data:
         k_tarih = datetime.datetime.strptime(item['Giris'], "%Y-%m-%d").date()
@@ -141,7 +215,6 @@ with tab2:
         k_gun = (b_tarih - datetime.date.today()).days
         if k_gun < 0: k_gun = 0
 
-        # Temsili skor ve yetkinlik verileri
         eto_gemide_listesi.append({
             "Durum": "🚢 Gemide",
             "Adı Soyadı": item['ETO'],
@@ -155,7 +228,6 @@ with tab2:
             "Sertifika / Eğitim": "High Voltage (HV) Geçerli"
         })
 
-    # YEDEK/KARADAKİ ETO'LAR
     eto_yedek_listesi = [
         {
             "Durum": "🏖️ Yedekte (İzinde)",
@@ -197,7 +269,6 @@ with tab2:
 
     df_tum_eto = pd.DataFrame(eto_gemide_listesi + eto_yedek_listesi)
 
-    # ÖZET METRİKLER
     col_m1, col_m2, col_m3 = st.columns(3)
     col_m1.metric("Toplam Elektrik Zabiti", len(df_tum_eto))
     col_m2.metric("Gemide Aktif Çalışan", len(eto_gemide_listesi))
@@ -205,7 +276,6 @@ with tab2:
 
     st.divider()
 
-    # FİLTRELEME SEÇENEĞİ
     filtre = st.radio("Listeleme Filtresi:", ["Hepsini Göster", "Sadece Gemidekiler", "Sadece Yedektekiler"], horizontal=True)
 
     if filtre == "Sadece Gemidekiler":
@@ -215,18 +285,10 @@ with tab2:
     else:
         df_goster = df_tum_eto
 
-    st.dataframe(
-        df_goster,
-        use_container_width=True,
-        column_config={
-            "Performans Skoru": st.column_config.TextColumn("Performans"),
-            "Adı Soyadı": st.column_config.TextColumn("ETO Adı Soyadı", help="Elektrik Zabiti"),
-            "Görevli Olduğu Gemi": st.column_config.TextColumn("Atandığı Gemi")
-        }
-    )
+    st.dataframe(df_goster, use_container_width=True)
 
-# TAB 3: ARIZA KAYDI
-with tab3:
+# TAB 4: ARIZA KAYDI
+with tab4:
     st.subheader(f"🛠️ {gemi_adi} - Elektrik Arıza Kaydı Formu")
     col1, col2 = st.columns(2)
     with col1:
@@ -259,8 +321,8 @@ with tab3:
         })
         st.success(f"{gemi_adi} için bulgu kaydı veritabanına eklendi!")
 
-# TAB 4: MEGGER TESTİ
-with tab4:
+# TAB 5: MEGGER TESTİ
+with tab5:
     st.subheader(f"⚡ {gemi_adi} - İzolasyon Direnci (Megger) Ölçümü")
     st.info("💡 Standart: 440V AC sistemler için minimum kabul edilebilir izolasyon değeri **1.0 MΩ**'dur.")
     m_col1, m_col2, m_col3 = st.columns(3)
@@ -276,8 +338,8 @@ with tab4:
         else:
             st.success("🟢 İZOLASYON SAĞLIKLI (Normal)")
 
-# TAB 5: PSC CHECKLIST
-with tab5:
+# TAB 6: PSC CHECKLIST
+with tab6:
     st.subheader(f"📝 {gemi_adi} - PSC & Class Elektrik Denetim Kontrol Listesi")
     st.write("Liman Devleti Kontrolü (PSC) öncesi onaylanması gereken kritik elektrik maddeleri:")
     
@@ -292,8 +354,8 @@ with tab5:
     st.progress(onay_sayisi / 6)
     st.write(f"**Tamamlanan Kontrol:** {onay_sayisi} / 6")
 
-# TAB 6: YEDEK PARÇA TAKİBİ
-with tab6:
+# TAB 7: YEDEK PARÇA TAKİBİ
+with tab7:
     st.subheader("📦 Kritik Elektrik Yedek Parça Stok Durumu")
     yedek_data = [
         {"Parça Adı": "Otomatik Voltaj Regülatörü (AVR)", "Ekipman": "DG1 / DG2 Alternatör", "Stok Adedi": 2, "Kritik Stok": 1, "Durum": "🟢 Yeterli"},
@@ -303,8 +365,8 @@ with tab6:
     ]
     st.dataframe(pd.DataFrame(yedek_data), use_container_width=True)
 
-# TAB 7: RAPORLAMA & PDF/EXCEL
-with tab7:
+# TAB 8: RAPORLAMA & PDF/EXCEL
+with tab8:
     st.subheader("📊 Filo Denetim Raporlama ve Dışa Aktarma")
     
     if len(st.session_state.bulgular) > 0:
