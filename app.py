@@ -13,7 +13,7 @@ st.set_page_config(
 st.title("⚓ TTS Ships - Filo Elektrik Enspeksiyon ve Takip Paneli")
 st.markdown("TTS Filosundaki gemilerin elektrik arızaları, megger testleri ve denetim bulgularını canlı takip edin.")
 
-# Güncellenmiş TTS Filosu (Kullanıcı Veritabanı)
+# Güncellenmiş TTS Filosu Veritabanı
 tts_fleet_data = [
     {"Gemi": "M/V MED STAR", "IMO": "9337028", "Tip": "Konteyner", "DWT": "27254", "GRT": "23633", "Bayrak": "Panama", "Yıl": "2004", "LOA": "191,10 m"},
     {"Gemi": "M/T AY YILDIZI", "IMO": "9667928", "Tip": "Tanker", "DWT": "49997", "GRT": "29940", "Bayrak": "Liberya", "Yıl": "2013", "LOA": "183 m"},
@@ -35,11 +35,10 @@ tts_fleet_data = [
 df_fleet = pd.DataFrame(tts_fleet_data)
 gemi_listesi = df_fleet["Gemi"].tolist()
 
-# Yan Menü (Sidebar) - Filtreler ve Gemi Seçimi
+# Yan Menü (Sidebar)
 st.sidebar.header("TTS Filo Denetimi")
 gemi_adi = st.sidebar.selectbox("Gemi Seçiniz", gemi_listesi)
 
-# Seçili Geminin Detaylarını Yan Menüde Göster
 secili_gemi_bilgi = df_fleet[df_fleet["Gemi"] == gemi_adi].iloc[0]
 
 st.sidebar.markdown(f"""
@@ -55,7 +54,7 @@ tarih = st.sidebar.date_input("Denetim Tarihi", datetime.date.today())
 st.sidebar.divider()
 
 # Ana Sekmeler
-tab1, tab2, tab3 = st.tabs(["📋 Enspeksiyon Bulguları", "⚡ Pano & Megger Testleri", "🚢 TTS Filo Künyesi ve Durumu"])
+tab1, tab2, tab3 = st.tabs(["📋 Enspeksiyon Bulguları & Fotoğraf", "⚡ Pano & Megger Testleri", "🚢 TTS Filo Künyesi ve Durumu"])
 
 with tab1:
     st.subheader(f"🛠️ {gemi_adi} ({secili_gemi_bilgi['Tip']}) - Arıza ve Eksiklik Kaydı")
@@ -79,17 +78,32 @@ with tab1:
             "Sıcaklık / Termal Kamera Anormalliği",
             "Kablo Kanalları / Sızdırmazlık (Gland)"
         ])
-    
-    with col2:
         durum = st.radio("Bulgu Durumu / Risk Derecesi", [
             "🔴 Kritik (Class / PSC Riski)",
             "🟡 Önemli (Kısa Vadeli Bakım)",
             "🟢 Uygun / Normal"
         ])
+    
+    with col2:
         aciklama = st.text_area("Bulgu / Arıza Açıklaması", "Örn: MSB 440V bara izolasyon değeri düşük (0.3 M-Ohm). Neme bağlı kaçak tespit edildi.")
+        
+        # Fotoğraf Yükleme Paneli
+        uploaded_files = st.file_uploader(
+            "📸 Arıza / Eksiklik Görsellerini Yükleyin (Çoklu Yükleme Desteklenir)",
+            type=["png", "jpg", "jpeg"],
+            accept_multiple_files=True
+        )
 
-    if st.button("Kaydı Filo Veritabanına Ekle"):
-        st.success(f"{gemi_adi} - {ekipman} için bulgu kaydı başarıyla oluşturuldu!")
+    # Yüklenen Görsellerin Önizlemesi
+    if uploaded_files:
+        st.write("### 🖼️ Yüklenen Görsel Önizlemeleri")
+        cols = st.columns(len(uploaded_files))
+        for idx, file in enumerate(uploaded_files):
+            cols[idx].image(file, caption=f"Görsel {idx+1}: {file.name}", use_column_width=True)
+
+    st.divider()
+    if st.button("Kaydı Görsellerle Birlikte Filo Veritabanına Ekle"):
+        st.success(f"{gemi_adi} - {ekipman} için bulgu kaydı ve ekli {len(uploaded_files) if uploaded_files else 0} adet görsel başarıyla yüklendi!")
 
 with tab2:
     st.subheader(f"⚡ {gemi_adi} - Elektrik Parametreleri & Kontrol Listesi")
