@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
 import datetime
-import folium
-from streamlit_folium import st_folium
+import streamlit.components.v1 as components
 
 # Sayfa Yapılandırması
 st.set_page_config(
@@ -13,19 +12,25 @@ st.set_page_config(
 
 # Başlık ve Açıklama
 st.title("⚓ TTS Ships - Filo Elektrik Enspeksiyon ve Canlı Konum Paneli")
-st.markdown("TTS Filosundaki gemilerin canlı konumları, elektrik arızaları, megger testleri ve denetim bulgularını takip edin.")
+st.markdown("TTS Filosundaki gemilerin canlı konumlarını MarineTraffic üzerinden takip edin, elektrik arızaları ve denetim bulgularını kaydedin.")
 
-# Resmi TTS Ships Harita Görseline Göre Güncellenmiş Dünya Konumları
+# Görseldeki Resmi TTS Ships Tablosundan Tam Doğrulanmış Veriler
 tts_fleet_data = [
-    {"Gemi": "M/V MED STAR", "IMO": "9337028", "Tip": "Konteyner", "DWT": "27254", "GRT": "23633", "Bayrak": "Panama", "Yıl": "2004", "LOA": "191,10 m", "Lat": 10.5000, "Lon": -66.9000, "Liman": "Venezuela / Karayipler", "Durum": "🟢 Uygun"},
-    {"Gemi": "M/V ATLANTIC STAR", "IMO": "9473327", "Tip": "Dökme Yük Gemisi", "DWT": "75002", "GRT": "41074", "Bayrak": "Liberya", "Yıl": "2011", "LOA": "225 m", "Lat": 25.0000, "Lon": 165.0000, "Liman": "Kuzey Pasifik / Seyirde", "Durum": "🔴 Kritik"},
-    {"Gemi": "M/V MERCUR STAR", "IMO": "9609287", "Tip": "Dökme Yük Gemisi", "DWT": "79520", "GRT": "43501", "Bayrak": "Malta", "Yıl": "2015", "LOA": "229 m", "Lat": 2.5000, "Lon": 101.5000, "Liman": "Malakka Boğazı / Güneydoğu Asya", "Durum": "🟢 Uygun"},
-    {"Gemi": "M/V KUZEY STAR", "IMO": "9499175", "Tip": "Tanker", "DWT": "6107", "GRT": "4081", "Bayrak": "Malta", "Yıl": "2020", "LOA": "108,10 m", "Lat": -25.0000, "Lon": 45.0000, "Liman": "Güney Afrika / Hint Okyanusu", "Durum": "🟡 Takipte"},
-    {"Gemi": "M/V VENUS STAR", "IMO": "9609134", "Tip": "Dökme Yük Gemisi", "DWT": "80888", "GRT": "44025", "Bayrak": "Liberya", "Yıl": "2013", "LOA": "229 m", "Lat": 27.0000, "Lon": 34.5000, "Liman": "Kızıldeniz / Seyirde", "Durum": "🟢 Uygun"},
-    {"Gemi": "M/V DENİZ STAR", "IMO": "1071472", "Tip": "Genel Kargo", "DWT": "8300", "GRT": "6641", "Bayrak": "Liberya", "Yıl": "2025", "LOA": "142 m", "Lat": 36.5000, "Lon": 25.0000, "Liman": "Ege Denizi / Doğu Akdeniz", "Durum": "🟢 Uygun"},
-    {"Gemi": "M/V MOON STAR", "IMO": "9667928", "Tip": "Tanker", "DWT": "49997", "GRT": "29940", "Bayrak": "Liberya", "Yıl": "2013", "LOA": "183 m", "Lat": 38.0000, "Lon": 15.0000, "Liman": "Orta Akdeniz", "Durum": "🔴 Kritik"},
-    {"Gemi": "M/V PACIFIC STAR", "IMO": "9470387", "Tip": "Dökme Yük Gemisi", "DWT": "78128", "GRT": "41718", "Bayrak": "Liberya", "Yıl": "2013", "LOA": "224,90 m", "Lat": 41.2500, "Lon": 29.1000, "Liman": "Karadeniz / Seyir Halinde", "Durum": "🟢 Uygun"},
-    {"Gemi": "M/V CHIEF SEATTLE", "IMO": "9230751", "Tip": "Dökme Yük Gemisi", "DWT": "52428", "GRT": "30174", "Bayrak": "Panama", "Yıl": "2001", "LOA": "189,99 m", "Lat": 40.0100, "Lon": 26.2500, "Liman": "Çanakkale Boğazı Geçiş", "Durum": "🟢 Uygun"}
+    {"Gemi": "M/V MED STAR", "IMO": "9337028", "Tip": "Konteyner", "DWT": "27254", "GRT": "23633", "Bayrak": "Panama", "Yıl": "2004", "LOA": "191,10 m", "Durum": "🟢 Uygun"},
+    {"Gemi": "M/T AY YILDIZI", "IMO": "9667928", "Tip": "Tanker", "DWT": "49997", "GRT": "29940", "Bayrak": "Liberya", "Yıl": "2013", "LOA": "183 m", "Durum": "🔴 Kritik"},
+    {"Gemi": "M/T KUZEY YILDIZ II", "IMO": "9499175", "Tip": "Tanker", "DWT": "6107", "GRT": "4081", "Bayrak": "Malta", "Yıl": "2020", "LOA": "108,10 m", "Durum": "🟡 Takipte"},
+    {"Gemi": "M/V A380", "IMO": "9310915", "Tip": "Ro-Ro Kargo", "DWT": "1300", "GRT": "1285", "Bayrak": "Liberya", "Yıl": "2003", "LOA": "75 m", "Durum": "🟢 Uygun"},
+    {"Gemi": "M/V AKBABA", "IMO": "9319478", "Tip": "Ro-Ro Kargo", "DWT": "1300", "GRT": "1281", "Bayrak": "Liberya", "Yıl": "2004", "LOA": "75 m", "Durum": "🟢 Uygun"},
+    {"Gemi": "M/V ALEXANDRA I", "IMO": "8876340", "Tip": "Dökme Yük Gemisi", "DWT": "60054", "GRT": "4848", "Bayrak": "Panama", "Yıl": "1991", "LOA": "138,40 m", "Durum": "🟢 Uygun"},
+    {"Gemi": "M/V ALENA", "IMO": "8857772", "Tip": "Dökme Yük Gemisi", "DWT": "60594", "GRT": "4848", "Bayrak": "Panama", "Yıl": "1991", "LOA": "138,40 m", "Durum": "🟡 Takipte"},
+    {"Gemi": "M/V ATLANTIC STAR", "IMO": "9473327", "Tip": "Dökme Yük Gemisi", "DWT": "75002,58", "GRT": "41074", "Bayrak": "Liberya", "Yıl": "2011", "LOA": "225 m", "Durum": "🔴 Kritik"},
+    {"Gemi": "M/V PACIFIC STAR", "IMO": "9470387", "Tip": "Dökme Yük Gemisi", "DWT": "78128", "GRT": "41718", "Bayrak": "Liberya", "Yıl": "2013", "LOA": "224,90 m", "Durum": "🟢 Uygun"},
+    {"Gemi": "M/V CHIEF SEATTLE", "IMO": "9230751", "Tip": "Dökme Yük Gemisi", "DWT": "52428", "GRT": "30174", "Bayrak": "Panama", "Yıl": "2001", "LOA": "189,99 m", "Durum": "🟢 Uygun"},
+    {"Gemi": "M/V VENUS STAR", "IMO": "9609134", "Tip": "Dökme Yük Gemisi", "DWT": "80888", "GRT": "44025", "Bayrak": "Liberya", "Yıl": "2013", "LOA": "229 m", "Durum": "🟢 Uygun"},
+    {"Gemi": "M/V MERCUR STAR", "IMO": "9609287", "Tip": "Dökme Yük Gemisi", "DWT": "79520", "GRT": "43501", "Bayrak": "Malta", "Yıl": "2015", "LOA": "229 m", "Durum": "🟢 Uygun"},
+    {"Gemi": "M/V DENİZ STAR", "IMO": "1071472", "Tip": "Genel Kargo", "DWT": "8300", "GRT": "6641", "Bayrak": "Liberya", "Yıl": "2025", "LOA": "142 m", "Durum": "🟢 Uygun"},
+    {"Gemi": "M/V BLACKSEA STAR", "IMO": "1114901", "Tip": "Genel Kargo", "DWT": "8330", "GRT": "6732", "Bayrak": "Liberya", "Yıl": "2025", "LOA": "142 m", "Durum": "🟢 Uygun"},
+    {"Gemi": "M/V SAPHIRA", "IMO": "7924425", "Tip": "Canlı Hayvanlar", "DWT": "12900", "GRT": "38988", "Bayrak": "Antigua-Barbuda", "Yıl": "1995", "LOA": "185,82 m", "Durum": "🟡 Takipte"}
 ]
 
 df_fleet = pd.DataFrame(tts_fleet_data)
@@ -40,8 +45,10 @@ secili_gemi_bilgi = df_fleet[df_fleet["Gemi"] == gemi_adi].iloc[0]
 st.sidebar.markdown(f"""
 * **IMO No:** {secili_gemi_bilgi['IMO']}
 * **Gemi Tipi:** {secili_gemi_bilgi['Tip']}
-* **Bulunduğu Konum:** {secili_gemi_bilgi['Liman']}
-* **Koordinat:** {secili_gemi_bilgi['Lat']}, {secili_gemi_bilgi['Lon']}
+* **Bayrak:** {secili_gemi_bilgi['Bayrak']}
+* **DWT / GRT:** {secili_gemi_bilgi['DWT']} / {secili_gemi_bilgi['GRT']}
+* **Boy (LOA):** {secili_gemi_bilgi['LOA']}
+* **İnşa Yılı:** {secili_gemi_bilgi['Yıl']}
 * **Elektrik Durumu:** {secili_gemi_bilgi['Durum']}
 """)
 
@@ -51,49 +58,23 @@ tarih = st.sidebar.date_input("Denetim Tarihi", datetime.date.today())
 st.sidebar.divider()
 
 # Ana Sekmeler
-tab1, tab2, tab3 = st.tabs(["🗺️ Canlı Harita & Konum", "📋 Enspeksiyon Bulguları & Fotoğraf", "🚢 TTS Filo Künyesi ve Durumu"])
+tab1, tab2, tab3 = st.tabs(["🗺️ Canlı MarineTraffic Haritası", "📋 Enspeksiyon Bulguları & Fotoğraf", "🚢 TTS Resmi Filo Künyesi"])
 
 with tab1:
-    st.subheader(f"🗺️ TTS Filosu Küresel Konum Haritası - Seçili Gemi: {gemi_adi}")
+    st.subheader(f"🗺️ MarineTraffic Canlı Takip - Seçili Gemi IMO: {secili_gemi_bilgi['IMO']} ({gemi_adi})")
     
-    # Harita Merkezini Seçili Geminin Koordinatına Ayarla
-    map_center = [secili_gemi_bilgi["Lat"], secili_gemi_bilgi["Lon"]]
+    # MarineTraffic Canlı Harita İframe Entegrasyonu
+    marinetraffic_url = f"https://www.marinetraffic.com/en/ais/embed/zoom:5/centery:0/centerx:0/maptype:1/shownames:true/mmsi:0/shipid:0/fleet:/fleet_id:/oldmmsi:/keep_map_baselayer:1"
     
-    # Dünya Haritası Görünümü İçin Zoom Seviyesi 3 Yapıldı
-    m = folium.Map(location=map_center, zoom_start=3, tiles="OpenStreetMap")
-
-    color_map = {"🟢 Uygun": "green", "🟡 Takipte": "orange", "🔴 Kritik": "red"}
-
-    # Tüm Filoyu Haritaya İşle
-    for _, row in df_fleet.iterrows():
-        popup_html = f"""
-        <div style="font-family: Arial; width: 200px;">
-            <h4>{row['Gemi']}</h4>
-            <b>IMO:</b> {row['IMO']}<br>
-            <b>Tip:</b> {row['Tip']}<br>
-            <b>Konum:</b> {row['Liman']}<br>
-            <b>Elektrik Sağlığı:</b> {row['Durum']}
-        </div>
-        """
-        
-        is_selected = row["Gemi"] == gemi_adi
-        icon_color = "purple" if is_selected else color_map.get(row["Durum"], "blue")
-        
-        folium.Marker(
-            location=[row["Lat"], row["Lon"]],
-            popup=folium.Popup(popup_html, max_width=250),
-            tooltip=f"{row['Gemi']} - {row['Liman']}",
-            icon=folium.Icon(color=icon_color, icon='ship', prefix='fa')
-        ).add_to(m)
-
-    st_folium(m, width="100%", height=500)
+    # Doğrudan MarineTraffic Canlı Takip Ekranını Yükle
+    components.iframe(
+        src=f"https://www.marinetraffic.com/en/ais/details/ships/imo:{secili_gemi_bilgi['IMO']}",
+        height=650,
+        scrolling=True
+    )
 
 with tab2:
-    st.subheader(f"🛠️ {gemi_adi} - Arıza ve Eksiklik Kaydı")
-    
-    col_k1, col_k2 = st.columns(2)
-    col_k1.info(f"📍 **Otomatik Çekilen Konum:** {secili_gemi_bilgi['Liman']}")
-    col_k2.info(f"🌐 **GPS Koordinatı:** Enlem {secili_gemi_bilgi['Lat']} | Boylam {secili_gemi_bilgi['Lon']}")
+    st.subheader(f"🛠️ {gemi_adi} (IMO: {secili_gemi_bilgi['IMO']}) - Arıza ve Eksiklik Kaydı")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -136,9 +117,9 @@ with tab2:
             cols[idx].image(file, caption=f"Görsel {idx+1}: {file.name}", use_column_width=True)
 
     st.divider()
-    if st.button("Kaydı Konum Bilgisiyle Birlikte Filo Veritabanına Ekle"):
-        st.success(f"{gemi_adi} ({secili_gemi_bilgi['Liman']}) için bulgu kaydı başarıyla oluşturuldu!")
+    if st.button("Kaydı Filo Veritabanına Ekle"):
+        st.success(f"{gemi_adi} (IMO: {secili_gemi_bilgi['IMO']}) için bulgu kaydı başarıyla oluşturuldu!")
 
 with tab3:
-    st.subheader("🚢 TTS Ships - Resmi Filo Listesi, Konumları ve Teknik Detaylar")
-    st.dataframe(df_fleet[["Gemi", "IMO", "Tip", "Liman", "Durum", "Bayrak", "Yıl", "Lat", "Lon"]], use_container_width=True)
+    st.subheader("🚢 TTS Ships - Resmi Filo Listesi ve Teknik Detaylar")
+    st.dataframe(df_fleet[["Gemi", "IMO", "Tip", "DWT", "GRT", "Bayrak", "Yıl", "LOA", "Durum"]], use_container_width=True)
