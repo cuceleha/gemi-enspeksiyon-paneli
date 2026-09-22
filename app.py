@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import datetime
 import io
+import os
+import sqlite3
 
 st.set_page_config(page_title="TTS Ships Panel", page_icon="⚡", layout="wide")
 
@@ -39,6 +41,7 @@ st.markdown("""
 .fault-item.high{background:#fdecea;border-left:4px solid #dc2626}
 .fault-item.mid{background:#fff7e6;border-left:4px solid #d97706}
 .fault-item.low{background:#eaf7ee;border-left:4px solid #16a34a}
+.fault-item.closed{background:#f1f5f9;border-left:4px solid #94a3b8;opacity:.65}
 .fault-badge{font-size:10.5px;padding:2px 8px;border-radius:10px;background:#0b3d91;color:#fff;font-weight:600;white-space:nowrap}
 .inspect-item{padding:10px 12px;border-radius:8px;margin-bottom:8px;background:#f8fafc;border-left:4px solid #1e6fd9;font-size:12.5px}
 .inspect-date{font-size:10.5px;color:#7a8699;margin-bottom:3px}
@@ -62,58 +65,186 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-if "purchases" not in st.session_state:
-    st.session_state.purchases = []
-if "megger_records" not in st.session_state:
-    st.session_state.megger_records = []
+# ------------------------------------------------------------------
+# VERİTABANI (SQLite) - Uygulama kapansa/yenilense bile veriler kalıcıdır
+# ------------------------------------------------------------------
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tts_ships.db")
 
-fleet_data = [
-    {"Gemi": "M/V MED STAR", "IMO": "9337028", "Tip": "Container", "DWT": "27254", "GRT": "23633", "Bayrak": "Panama", "Yıl": "2004", "LOA": "191,10 m", "Durum": "🟢 Uygun", "ETO": "Ahmet YILMAZ", "Giris": "2025-06-15", "KontratBitis": "2026-06-15"},
-    {"Gemi": "M/T MOON STAR", "IMO": "9667928", "Tip": "Tanker", "DWT": "49997", "GRT": "29940", "Bayrak": "Liberia", "Yıl": "2013", "LOA": "183 m", "Durum": "🟢 Uygun", "ETO": "Mehmet DEMİR", "Giris": "2025-11-02", "KontratBitis": "2026-08-02"},
-    {"Gemi": "M/T KUZEY STAR II", "IMO": "9499175", "Tip": "Tanker", "DWT": "6107", "GRT": "4081", "Bayrak": "Malta", "Yıl": "2020", "LOA": "108,10 m", "Durum": "🟢 Uygun", "ETO": "Ali KAYA", "Giris": "2026-01-20", "KontratBitis": "2027-01-20"},
-    {"Gemi": "M/V A380", "IMO": "9310915", "Tip": "Ro-Ro Cargo", "DWT": "1300", "GRT": "1285", "Bayrak": "Liberia", "Yıl": "2003", "LOA": "75 m", "Durum": "🟢 Uygun", "ETO": "Hasan ÇELİK", "Giris": "2025-09-05", "KontratBitis": "2026-03-05"},
-    {"Gemi": "M/V AKBABA", "IMO": "9319478", "Tip": "Ro-Ro Cargo", "DWT": "1300", "GRT": "1281", "Bayrak": "Liberia", "Yıl": "2004", "LOA": "75 m", "Durum": "🟢 Uygun", "ETO": "Emre ŞAHİN", "Giris": "2025-12-01", "KontratBitis": "2026-09-01"},
-    {"Gemi": "M/V ALEXANDRA I", "IMO": "8876340", "Tip": "Bulk Carrier", "DWT": "6005", "GRT": "4949", "Bayrak": "Panama", "Yıl": "1991", "LOA": "138,40 m", "Durum": "🟢 Uygun", "ETO": "Serkan AYDIN", "Giris": "2025-07-12", "KontratBitis": "2026-07-12"},
-    {"Gemi": "M/V ALENA", "IMO": "8857772", "Tip": "Bulk Carrier", "DWT": "6059", "GRT": "4949", "Bayrak": "Panama", "Yıl": "1991", "LOA": "138,40 m", "Durum": "🟢 Uygun", "ETO": "Burak ÖZTÜRK", "Giris": "2025-08-20", "KontratBitis": "2026-05-20"},
-    {"Gemi": "M/V ATLANTIC STAR", "IMO": "9473327", "Tip": "Bulk Carrier", "DWT": "75002,58", "GRT": "41074", "Bayrak": "Liberia", "Yıl": "2011", "LOA": "225 m", "Durum": "🟢 Uygun", "ETO": "Kemal ARSLAN", "Giris": "2026-02-10", "KontratBitis": "2027-02-10"},
-    {"Gemi": "M/V PACIFIC STAR", "IMO": "9470387", "Tip": "Bulk Carrier", "DWT": "78128", "GRT": "41718", "Bayrak": "Liberia", "Yıl": "2013", "LOA": "224,90 m", "Durum": "🟢 Uygun", "ETO": "Onur YILDIZ", "Giris": "2025-10-01", "KontratBitis": "2026-04-01"},
-    {"Gemi": "M/V CHIEF SEATTLE", "IMO": "9230751", "Tip": "Bulk Carrier", "DWT": "52428", "GRT": "30174", "Bayrak": "Panama", "Yıl": "2001", "LOA": "189,89 m", "Durum": "🟢 Uygun", "ETO": "Volkan KOÇ", "Giris": "2025-05-18", "KontratBitis": "2026-05-18"},
-    {"Gemi": "M/V VENUS STAR", "IMO": "9609134", "Tip": "Bulk Carrier", "DWT": "80888", "GRT": "44025", "Bayrak": "Liberia", "Yıl": "2013", "LOA": "229 m", "Durum": "🟢 Uygun", "ETO": "Cem POLAT", "Giris": "2026-03-01", "KontratBitis": "2027-03-01"},
-    {"Gemi": "M/V MERCUR STAR", "IMO": "9609287", "Tip": "Bulk Carrier", "DWT": "79520", "GRT": "43501", "Bayrak": "Malta", "Yıl": "2015", "LOA": "229 m", "Durum": "🟢 Uygun", "ETO": "Barış TAŞ", "Giris": "2025-12-15", "KontratBitis": "2026-06-15"},
-    {"Gemi": "M/V DENIZ STAR", "IMO": "1071472", "Tip": "General Cargo", "DWT": "8300", "GRT": "6641", "Bayrak": "Liberia", "Yıl": "2025", "LOA": "142 m", "Durum": "🟢 Uygun", "ETO": "Tolga ERDOĞAN", "Giris": "2026-01-05", "KontratBitis": "2026-10-05"},
-    {"Gemi": "M/V BLACKSEA STAR", "IMO": "1114901", "Tip": "General Cargo", "DWT": "8330", "GRT": "6732", "Bayrak": "Liberia", "Yıl": "2025", "LOA": "142 m", "Durum": "🟢 Uygun", "ETO": "Yusuf KURT", "Giris": "2026-02-20", "KontratBitis": "2026-11-20"},
-    {"Gemi": "M/V SAPHIRA", "IMO": "7924425", "Tip": "Live Stock", "DWT": "12900", "GRT": "38988", "Bayrak": "Antigua-Barbuda", "Yıl": "1995", "LOA": "185,82 m", "Durum": "🟢 Uygun", "ETO": "Murat AVCİ", "Giris": "2025-04-10", "KontratBitis": "2026-04-10"},
-]
-fleet_df = pd.DataFrame(fleet_data)
 
-arizalar = [
-    {"Gemi": "M/V BOSPHORUS", "Ekipman": "Ana Jeneratör No:2", "Aciliyet": "Yüksek", "Tespit": "2026-09-18", "Aciklama": "Sargı izolasyon direnci düşük (0.6 MOhm)."},
-    {"Gemi": "M/V MED STAR", "Ekipman": "Bow Thruster Kumanda Panosu", "Aciliyet": "Orta", "Tespit": "2026-09-15", "Aciklama": "Kumanda kartı arızalı."},
-    {"Gemi": "M/T MOON STAR", "Ekipman": "Acil Aydınlatma Devresi", "Aciliyet": "Yüksek", "Tespit": "2026-09-20", "Aciklama": "Toprak kaçağı tespit edildi."},
-    {"Gemi": "M/V A380", "Ekipman": "Soğutma Kompresörü Motoru", "Aciliyet": "Düşük", "Tespit": "2026-09-10", "Aciklama": "Rulman sesi artmış."},
-    {"Gemi": "M/V ATLANTIC STAR", "Ekipman": "MSB Bus-Bar Bağlantısı", "Aciliyet": "Yüksek", "Tespit": "2026-09-12", "Aciklama": "Sıcak nokta tespit edildi (85 C)."},
-    {"Gemi": "M/V SAPHIRA", "Ekipman": "Yangın Alarm Panosu", "Aciliyet": "Orta", "Tespit": "2026-09-08", "Aciklama": "Zone 3 dedektörü arızalı."},
-]
+def get_conn():
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-denetlemeler = [
-    {"Tarih": "2026-09-20", "Gemi": "M/T MOON STAR", "Baslik": "Aylık Elektrik Denetimi", "Aciklama": "MSB, acil jeneratör kontrol edildi. Acil aydınlatmada toprak kaçağı bulundu.", "Denetci": "Ahmet YILMAZ"},
-    {"Tarih": "2026-09-18", "Gemi": "M/V BOSPHORUS", "Baslik": "Yıllık Class Survey", "Aciklama": "Alternatör No:2 izolasyon testleri tamamlandı.", "Denetci": "Mehmet DEMİR"},
-    {"Tarih": "2026-09-15", "Gemi": "M/V MED STAR", "Baslik": "PSC Öncesi Öz Denetim", "Aciklama": "Steering gear, emergency generator kontrol edildi. Bow thruster kartı arızalı.", "Denetci": "Ali KAYA"},
-    {"Tarih": "2026-09-12", "Gemi": "M/V ATLANTIC STAR", "Baslik": "Termal Kamera Taraması", "Aciklama": "Bus-bar bağlantısında sıcak nokta tespit edildi.", "Denetci": "Kemal ARSLAN"},
-    {"Tarih": "2026-09-08", "Gemi": "M/V SAPHIRA", "Baslik": "Yangın Alarm Testi", "Aciklama": "Zone 3 dedektörü cevap vermedi.", "Denetci": "Murat AVCİ"},
-    {"Tarih": "2026-09-05", "Gemi": "M/V A380", "Baslik": "Rutin Elektrik Kontrolü", "Aciklama": "Aydınlatma ve ana pano kontrol edildi.", "Denetci": "Hasan ÇELİK"},
-]
 
-malzeme_ihtiyac = [
-    {"Malzeme": "Bow Thruster Kumanda Kartı", "Gemi": "M/V MED STAR", "Miktar": 1, "Oncelik": "Acil", "Tedarikci": "Kongsberg", "Talep": "2026-09-16"},
-    {"Malzeme": "Termal Kamera Kartuşu", "Gemi": "M/V ATLANTIC STAR", "Miktar": 1, "Oncelik": "Yüksek", "Tedarikci": "FLIR", "Talep": "2026-09-14"},
-    {"Malzeme": "Yangın Dedektörü (Zone 3)", "Gemi": "M/V SAPHIRA", "Miktar": 2, "Oncelik": "Normal", "Tedarikci": "Consilium", "Talep": "2026-09-10"},
-    {"Malzeme": "İzolasyon Bandı", "Gemi": "Tüm Filo", "Miktar": 20, "Oncelik": "Normal", "Tedarikci": "3M", "Talep": "2026-09-09"},
-    {"Malzeme": "Acil Aydınlatma Balastı", "Gemi": "M/T MOON STAR", "Miktar": 4, "Oncelik": "Acil", "Tedarikci": "Philips", "Talep": "2026-09-20"},
-    {"Malzeme": "Rulman (Kompresör)", "Gemi": "M/V A380", "Miktar": 2, "Oncelik": "Yüksek", "Tedarikci": "SKF", "Talep": "2026-09-11"},
-    {"Malzeme": "Sigorta Seti (MSB Yedek)", "Gemi": "M/V MED STAR", "Miktar": 1, "Oncelik": "Normal", "Tedarikci": "ABB", "Talep": "2026-09-07"},
-    {"Malzeme": "Kontaktör (3TF52)", "Gemi": "M/V CHIEF SEATTLE", "Miktar": 3, "Oncelik": "Yüksek", "Tedarikci": "Siemens", "Talep": "2026-09-13"},
-]
+def init_db():
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("""CREATE TABLE IF NOT EXISTS ships(
+        gemi TEXT PRIMARY KEY, imo TEXT, tip TEXT, dwt TEXT, grt TEXT,
+        bayrak TEXT, yil TEXT, loa TEXT, eto TEXT, giris TEXT, kontrat_bitis TEXT
+    )""")
+
+    cur.execute("""CREATE TABLE IF NOT EXISTS faults(
+        id INTEGER PRIMARY KEY AUTOINCREMENT, gemi TEXT, ekipman TEXT,
+        aciliyet TEXT, tespit TEXT, aciklama TEXT, status TEXT DEFAULT 'Açık'
+    )""")
+
+    cur.execute("""CREATE TABLE IF NOT EXISTS inspections(
+        id INTEGER PRIMARY KEY AUTOINCREMENT, tarih TEXT, gemi TEXT,
+        baslik TEXT, aciklama TEXT, denetci TEXT
+    )""")
+
+    cur.execute("""CREATE TABLE IF NOT EXISTS materials(
+        id INTEGER PRIMARY KEY AUTOINCREMENT, malzeme TEXT, gemi TEXT,
+        miktar INTEGER, oncelik TEXT, tedarikci TEXT, talep TEXT
+    )""")
+
+    cur.execute("""CREATE TABLE IF NOT EXISTS purchases(
+        id INTEGER PRIMARY KEY AUTOINCREMENT, tarih TEXT, gemi TEXT,
+        malzeme TEXT, miktar INTEGER, oncelik TEXT, tedarikci TEXT,
+        notlar TEXT, durum TEXT DEFAULT '🕓 Bekliyor'
+    )""")
+
+    cur.execute("""CREATE TABLE IF NOT EXISTS megger(
+        id INTEGER PRIMARY KEY AUTOINCREMENT, tarih TEXT, gemi TEXT,
+        devre TEXT, test_v TEXT, ir_deger REAL, sonuc TEXT
+    )""")
+
+    conn.commit()
+
+    # İlk çalıştırmada seed (örnek) veriyi yükle - sadece tablo boşsa
+    cur.execute("SELECT COUNT(*) FROM ships")
+    if cur.fetchone()[0] == 0:
+        seed_ships = [
+            ("M/V MED STAR", "9337028", "Container", "27254", "23633", "Panama", "2004", "191,10 m", "Ahmet YILMAZ", "2025-06-15", "2026-06-15"),
+            ("M/T MOON STAR", "9667928", "Tanker", "49997", "29940", "Liberia", "2013", "183 m", "Mehmet DEMİR", "2025-11-02", "2026-08-02"),
+            ("M/T KUZEY STAR II", "9499175", "Tanker", "6107", "4081", "Malta", "2020", "108,10 m", "Ali KAYA", "2026-01-20", "2027-01-20"),
+            ("M/V A380", "9310915", "Ro-Ro Cargo", "1300", "1285", "Liberia", "2003", "75 m", "Hasan ÇELİK", "2025-09-05", "2026-03-05"),
+            ("M/V AKBABA", "9319478", "Ro-Ro Cargo", "1300", "1281", "Liberia", "2004", "75 m", "Emre ŞAHİN", "2025-12-01", "2026-09-01"),
+            ("M/V ALEXANDRA I", "8876340", "Bulk Carrier", "6005", "4949", "Panama", "1991", "138,40 m", "Serkan AYDIN", "2025-07-12", "2026-07-12"),
+            ("M/V ALENA", "8857772", "Bulk Carrier", "6059", "4949", "Panama", "1991", "138,40 m", "Burak ÖZTÜRK", "2025-08-20", "2026-05-20"),
+            ("M/V ATLANTIC STAR", "9473327", "Bulk Carrier", "75002,58", "41074", "Liberia", "2011", "225 m", "Kemal ARSLAN", "2026-02-10", "2027-02-10"),
+            ("M/V PACIFIC STAR", "9470387", "Bulk Carrier", "78128", "41718", "Liberia", "2013", "224,90 m", "Onur YILDIZ", "2025-10-01", "2026-04-01"),
+            ("M/V CHIEF SEATTLE", "9230751", "Bulk Carrier", "52428", "30174", "Panama", "2001", "189,89 m", "Volkan KOÇ", "2025-05-18", "2026-05-18"),
+            ("M/V VENUS STAR", "9609134", "Bulk Carrier", "80888", "44025", "Liberia", "2013", "229 m", "Cem POLAT", "2026-03-01", "2027-03-01"),
+            ("M/V MERCUR STAR", "9609287", "Bulk Carrier", "79520", "43501", "Malta", "2015", "229 m", "Barış TAŞ", "2025-12-15", "2026-06-15"),
+            ("M/V DENIZ STAR", "1071472", "General Cargo", "8300", "6641", "Liberia", "2025", "142 m", "Tolga ERDOĞAN", "2026-01-05", "2026-10-05"),
+            ("M/V BLACKSEA STAR", "1114901", "General Cargo", "8330", "6732", "Liberia", "2025", "142 m", "Yusuf KURT", "2026-02-20", "2026-11-20"),
+            ("M/V SAPHIRA", "7924425", "Live Stock", "12900", "38988", "Antigua-Barbuda", "1995", "185,82 m", "Murat AVCİ", "2025-04-10", "2026-04-10"),
+            # Not: orijinal arıza listesinde geçen M/V BOSPHORUS filo tablosunda yoktu, tutarlılık için ekleniyor
+            ("M/V BOSPHORUS", "9000001", "Tanker", "45000", "27000", "Malta", "2010", "180 m", "Deniz KARA", "2025-09-01", "2026-09-01"),
+        ]
+        cur.executemany("INSERT INTO ships VALUES (?,?,?,?,?,?,?,?,?,?,?)", seed_ships)
+
+        seed_faults = [
+            ("M/V BOSPHORUS", "Ana Jeneratör No:2", "Yüksek", "2026-09-18", "Sargı izolasyon direnci düşük (0.6 MOhm).", "Açık"),
+            ("M/V MED STAR", "Bow Thruster Kumanda Panosu", "Orta", "2026-09-15", "Kumanda kartı arızalı.", "Açık"),
+            ("M/T MOON STAR", "Acil Aydınlatma Devresi", "Yüksek", "2026-09-20", "Toprak kaçağı tespit edildi.", "Açık"),
+            ("M/V A380", "Soğutma Kompresörü Motoru", "Düşük", "2026-09-10", "Rulman sesi artmış.", "Açık"),
+            ("M/V ATLANTIC STAR", "MSB Bus-Bar Bağlantısı", "Yüksek", "2026-09-12", "Sıcak nokta tespit edildi (85 C).", "Açık"),
+            ("M/V SAPHIRA", "Yangın Alarm Panosu", "Orta", "2026-09-08", "Zone 3 dedektörü arızalı.", "Açık"),
+        ]
+        cur.executemany("INSERT INTO faults(gemi,ekipman,aciliyet,tespit,aciklama,status) VALUES (?,?,?,?,?,?)", seed_faults)
+
+        seed_inspections = [
+            ("2026-09-20", "M/T MOON STAR", "Aylık Elektrik Denetimi", "MSB, acil jeneratör kontrol edildi. Acil aydınlatmada toprak kaçağı bulundu.", "Ahmet YILMAZ"),
+            ("2026-09-18", "M/V BOSPHORUS", "Yıllık Class Survey", "Alternatör No:2 izolasyon testleri tamamlandı.", "Mehmet DEMİR"),
+            ("2026-09-15", "M/V MED STAR", "PSC Öncesi Öz Denetim", "Steering gear, emergency generator kontrol edildi. Bow thruster kartı arızalı.", "Ali KAYA"),
+            ("2026-09-12", "M/V ATLANTIC STAR", "Termal Kamera Taraması", "Bus-bar bağlantısında sıcak nokta tespit edildi.", "Kemal ARSLAN"),
+            ("2026-09-08", "M/V SAPHIRA", "Yangın Alarm Testi", "Zone 3 dedektörü cevap vermedi.", "Murat AVCİ"),
+            ("2026-09-05", "M/V A380", "Rutin Elektrik Kontrolü", "Aydınlatma ve ana pano kontrol edildi.", "Hasan ÇELİK"),
+        ]
+        cur.executemany("INSERT INTO inspections(tarih,gemi,baslik,aciklama,denetci) VALUES (?,?,?,?,?)", seed_inspections)
+
+        seed_materials = [
+            ("Bow Thruster Kumanda Kartı", "M/V MED STAR", 1, "Acil", "Kongsberg", "2026-09-16"),
+            ("Termal Kamera Kartuşu", "M/V ATLANTIC STAR", 1, "Yüksek", "FLIR", "2026-09-14"),
+            ("Yangın Dedektörü (Zone 3)", "M/V SAPHIRA", 2, "Normal", "Consilium", "2026-09-10"),
+            ("İzolasyon Bandı", "Tüm Filo", 20, "Normal", "3M", "2026-09-09"),
+            ("Acil Aydınlatma Balastı", "M/T MOON STAR", 4, "Acil", "Philips", "2026-09-20"),
+            ("Rulman (Kompresör)", "M/V A380", 2, "Yüksek", "SKF", "2026-09-11"),
+            ("Sigorta Seti (MSB Yedek)", "M/V MED STAR", 1, "Normal", "ABB", "2026-09-07"),
+            ("Kontaktör (3TF52)", "M/V CHIEF SEATTLE", 3, "Yüksek", "Siemens", "2026-09-13"),
+        ]
+        cur.executemany("INSERT INTO materials(malzeme,gemi,miktar,oncelik,tedarikci,talep) VALUES (?,?,?,?,?,?)", seed_materials)
+
+        conn.commit()
+
+    conn.close()
+
+
+init_db()
+
+
+# ------------------------------------------------------------------
+# VERİ ERİŞİM YARDIMCI FONKSİYONLARI
+# ------------------------------------------------------------------
+def df_from(query, params=()):
+    conn = get_conn()
+    df = pd.read_sql_query(query, conn, params=params)
+    conn.close()
+    return df
+
+
+def run(query, params=()):
+    conn = get_conn()
+    conn.execute(query, params)
+    conn.commit()
+    conn.close()
+
+
+def gemi_durumu_hesapla(gemi_adi):
+    """Açık arızalara bakarak geminin Durum rozetini dinamik hesaplar."""
+    faults_df = df_from(
+        "SELECT aciliyet FROM faults WHERE gemi=? AND status='Açık'", (gemi_adi,)
+    )
+    if faults_df.empty:
+        return "🟢 Uygun"
+    if (faults_df["aciliyet"] == "Yüksek").any():
+        return "🔴 Arıza"
+    if (faults_df["aciliyet"] == "Orta").any():
+        return "🟡 Bakım"
+    return "🟢 Uygun"
+
+
+def fleet_df_yukle():
+    df = df_from("SELECT * FROM ships")
+    df = df.rename(columns={
+        "gemi": "Gemi", "imo": "IMO", "tip": "Tip", "dwt": "DWT", "grt": "GRT",
+        "bayrak": "Bayrak", "yil": "Yıl", "loa": "LOA", "eto": "ETO",
+        "giris": "Giris", "kontrat_bitis": "KontratBitis",
+    })
+    df["Durum"] = df["Gemi"].apply(gemi_durumu_hesapla)
+    return df
+
+
+def arizalar_yukle(sadece_acik=True):
+    if sadece_acik:
+        df = df_from("SELECT * FROM faults WHERE status='Açık' ORDER BY tespit DESC")
+    else:
+        df = df_from("SELECT * FROM faults ORDER BY tespit DESC")
+    return df.rename(columns={
+        "gemi": "Gemi", "ekipman": "Ekipman", "aciliyet": "Aciliyet",
+        "tespit": "Tespit", "aciklama": "Aciklama", "status": "Durum",
+    })
+
+
+def denetlemeler_yukle():
+    df = df_from("SELECT * FROM inspections ORDER BY tarih DESC")
+    return df.rename(columns={
+        "tarih": "Tarih", "gemi": "Gemi", "baslik": "Baslik",
+        "aciklama": "Aciklama", "denetci": "Denetci",
+    })
+
+
+def malzeme_yukle():
+    df = df_from("SELECT * FROM materials ORDER BY talep DESC")
+    return df.rename(columns={
+        "malzeme": "Malzeme", "gemi": "Gemi", "miktar": "Miktar",
+        "oncelik": "Oncelik", "tedarikci": "Tedarikci", "talep": "Talep",
+    })
 
 
 def kontrat_bilgi(giris_str, bitis_str):
@@ -140,9 +271,9 @@ def kontrat_bilgi(giris_str, bitis_str):
 
 def ship_card_html(row):
     cls = ""
-    if "Arıza" in row["Durum"] or "Süresi" in row["Durum"]:
+    if "Arıza" in row["Durum"]:
         cls = "err"
-    elif "Bakım" in row["Durum"] or "Yakında" in row["Durum"]:
+    elif "Bakım" in row["Durum"]:
         cls = "warn"
     emoji_map = {"Container": "📦", "Tanker": "🛢️", "Bulk Carrier": "⛏️", "Ro-Ro Cargo": "🚗", "General Cargo": "📦", "Live Stock": "🐄"}
     tip_emoji = emoji_map.get(row["Tip"], "🚢")
@@ -176,25 +307,21 @@ def ship_card_html(row):
     return h
 
 
-def render_ariza():
-    st.markdown('<div class="panel-card"><div class="panel-title">🔧 Gemilerde Bulunan Toplam Arızalar</div>', unsafe_allow_html=True)
-    y = 0
-    o = 0
-    d = 0
-    for a in arizalar:
-        if a["Aciliyet"] == "Yüksek":
-            y += 1
-        elif a["Aciliyet"] == "Orta":
-            o += 1
-        else:
-            d += 1
+def render_ariza(fleet_df):
+    st.markdown('<div class="panel-card"><div class="panel-title">🔧 Gemilerde Bulunan Toplam Arızalar (Açık)</div>', unsafe_allow_html=True)
+    ariza_df = arizalar_yukle(sadece_acik=True)
+    y = int((ariza_df["Aciliyet"] == "Yüksek").sum()) if not ariza_df.empty else 0
+    o = int((ariza_df["Aciliyet"] == "Orta").sum()) if not ariza_df.empty else 0
+    d = int((ariza_df["Aciliyet"] == "Düşük").sum()) if not ariza_df.empty else 0
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Toplam", len(arizalar))
+    m1.metric("Toplam (Açık)", len(ariza_df))
     m2.metric("🔴 Yüksek", y)
     m3.metric("🟡 Orta", o)
     m4.metric("🟢 Düşük", d)
     st.markdown("---")
-    for a in arizalar:
+    if ariza_df.empty:
+        st.info("Açık arıza kaydı yok.")
+    for _, a in ariza_df.iterrows():
         cls = "low"
         if a["Aciliyet"] == "Yüksek":
             cls = "high"
@@ -206,12 +333,46 @@ def render_ariza():
         line += '<div style="font-size:10px;color:#7a8699;margin-top:3px;">Tespit: ' + a["Tespit"] + '</div></div>'
         line += '<span class="fault-badge">' + a["Aciliyet"] + '</span></div>'
         st.markdown(line, unsafe_allow_html=True)
+
+    with st.expander("✅ Arıza Kapat (giderildi olarak işaretle)"):
+        if not ariza_df.empty:
+            secim_etiketleri = [
+                str(r["id"]) + " — " + r["Gemi"] + " · " + r["Ekipman"] for _, r in ariza_df.iterrows()
+            ]
+            secim = st.selectbox("Kapatılacak arıza", secim_etiketleri, key="ariza_kapat_sec")
+            if st.button("Kapat", key="ariza_kapat_btn"):
+                fault_id = int(secim.split(" — ")[0])
+                run("UPDATE faults SET status='Kapalı' WHERE id=?", (fault_id,))
+                st.success("✅ Arıza kapatıldı, gemi durumu güncellendi.")
+                st.rerun()
+        else:
+            st.caption("Kapatılacak açık arıza yok.")
+
+    with st.expander("➕ Yeni Arıza Ekle"):
+        with st.form("yeni_ariza_form"):
+            c1, c2 = st.columns(2)
+            with c1:
+                gemi = st.selectbox("Gemi", fleet_df["Gemi"].tolist(), key="yeni_ariza_gemi")
+                ekipman = st.text_input("Ekipman")
+            with c2:
+                aciliyet = st.selectbox("Aciliyet", ["Yüksek", "Orta", "Düşük"], key="yeni_ariza_aciliyet")
+                tespit = st.date_input("Tespit Tarihi", datetime.date.today(), key="yeni_ariza_tarih")
+            aciklama = st.text_area("Açıklama")
+            if st.form_submit_button("Kaydet") and ekipman:
+                run(
+                    "INSERT INTO faults(gemi,ekipman,aciliyet,tespit,aciklama,status) VALUES (?,?,?,?,?, 'Açık')",
+                    (gemi, ekipman, aciliyet, str(tespit), aciklama),
+                )
+                st.success("✅ Arıza eklendi.")
+                st.rerun()
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 
 def render_denetleme():
     st.markdown('<div class="panel-card"><div class="panel-title">📋 En Son Yapılan Denetlemeler ve Tespitler</div>', unsafe_allow_html=True)
-    for d in denetlemeler:
+    denet_df = denetlemeler_yukle()
+    for _, d in denet_df.iterrows():
         line = '<div class="inspect-item">'
         line += '<div class="inspect-date">📅 ' + d["Tarih"] + ' · Denetçi: ' + d["Denetci"] + '</div>'
         line += '<div class="inspect-title">🚢 ' + d["Gemi"] + ' — ' + d["Baslik"] + '</div>'
@@ -222,23 +383,17 @@ def render_denetleme():
 
 def render_malzeme():
     st.markdown('<div class="panel-card"><div class="panel-title">📦 Malzeme İhtiyaç Listesi</div>', unsafe_allow_html=True)
-    a = 0
-    y = 0
-    n = 0
-    for m in malzeme_ihtiyac:
-        if m["Oncelik"] == "Acil":
-            a += 1
-        elif m["Oncelik"] == "Yüksek":
-            y += 1
-        else:
-            n += 1
+    mat_df = malzeme_yukle()
+    a = int((mat_df["Oncelik"] == "Acil").sum()) if not mat_df.empty else 0
+    y = int((mat_df["Oncelik"] == "Yüksek").sum()) if not mat_df.empty else 0
+    n = int((mat_df["Oncelik"] == "Normal").sum()) if not mat_df.empty else 0
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Toplam", len(malzeme_ihtiyac))
+    m1.metric("Toplam", len(mat_df))
     m2.metric("🔴 Acil", a)
     m3.metric("🟡 Yüksek", y)
     m4.metric("🟢 Normal", n)
     st.markdown("---")
-    for m in malzeme_ihtiyac:
+    for _, m in mat_df.iterrows():
         cls = "normal"
         if m["Oncelik"] == "Acil":
             cls = "acil"
@@ -259,17 +414,36 @@ menu = st.sidebar.radio(
      "📚 Teknik Dokümanlar", "🎓 ETO Eğitim & PSC", "⚡ Megger Kayıtları", "📄 Raporlama"],
 )
 st.sidebar.markdown("---")
-st.sidebar.caption("© 2026 TTS Ships · v3.6")
+st.sidebar.caption("© 2026 TTS Ships · v3.7 (kalıcı veri + dinamik durum)")
+
+fleet_df = fleet_df_yukle()
 
 if menu == "🏠 Dashboard":
     st.subheader("📊 Filo Genel Durum")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Toplam Gemi", len(fleet_df))
-    c2.metric("Uygun", (fleet_df["Durum"] == "🟢 Uygun").sum())
-    c3.metric("Bakım", (fleet_df["Durum"] == "🟡 Bakım").sum())
-    c4.metric("Arıza", (fleet_df["Durum"] == "🔴 Arıza").sum())
+    c2.metric("🟢 Uygun", (fleet_df["Durum"] == "🟢 Uygun").sum())
+    c3.metric("🟡 Bakım", (fleet_df["Durum"] == "🟡 Bakım").sum())
+    c4.metric("🔴 Arıza", (fleet_df["Durum"] == "🔴 Arıza").sum())
     st.markdown("---")
-    rows = fleet_df.to_dict("records")
+
+    with st.expander("🔍 Filtrele"):
+        f1, f2 = st.columns(2)
+        with f1:
+            durum_filtre = st.multiselect(
+                "Durum", ["🟢 Uygun", "🟡 Bakım", "🔴 Arıza"], default=[]
+            )
+        with f2:
+            tip_filtre = st.multiselect(
+                "Gemi Tipi", sorted(fleet_df["Tip"].unique().tolist()), default=[]
+            )
+    gosterilecek = fleet_df.copy()
+    if durum_filtre:
+        gosterilecek = gosterilecek[gosterilecek["Durum"].isin(durum_filtre)]
+    if tip_filtre:
+        gosterilecek = gosterilecek[gosterilecek["Tip"].isin(tip_filtre)]
+
+    rows = gosterilecek.to_dict("records")
     for i in range(0, len(rows), 3):
         cols = st.columns(3)
         for j, col in enumerate(cols):
@@ -279,7 +453,7 @@ if menu == "🏠 Dashboard":
     st.markdown("---")
     ca, cb = st.columns([1, 1])
     with ca:
-        render_ariza()
+        render_ariza(fleet_df)
     with cb:
         render_malzeme()
     st.markdown("---")
@@ -303,14 +477,8 @@ elif menu == "📜 Sertifika & Survey":
         {"Gemi": "M/V SAPHIRA", "Sertifika": "IOPP", "Bitis": str(t + datetime.timedelta(days=320)), "Durum": "🟢 Geçerli"},
     ]
     cert_df = pd.DataFrame(cd)
-    kritik_sayisi = 0
-    for d in cd:
-        if "Kritik" in d["Durum"] or "Süresi" in d["Durum"]:
-            kritik_sayisi += 1
-    yakinda_sayisi = 0
-    for d in cd:
-        if "Yakında" in d["Durum"]:
-            yakinda_sayisi += 1
+    kritik_sayisi = sum(1 for d in cd if "Kritik" in d["Durum"] or "Süresi" in d["Durum"])
+    yakinda_sayisi = sum(1 for d in cd if "Yakında" in d["Durum"])
     k1, k2, k3 = st.columns(3)
     k1.metric("Toplam", len(cert_df))
     k2.metric("Kritik", kritik_sayisi)
@@ -330,16 +498,32 @@ elif menu == "🛒 Satınalma":
             tedarikci = st.text_input("Tedarikçi (opsiyonel)")
             notlar = st.text_area("Notlar")
         if st.form_submit_button("📨 Talep Oluştur") and malzeme:
-            st.session_state.purchases.append({
-                "Tarih": str(datetime.date.today()),
-                "Gemi": gemi, "Malzeme": malzeme, "Miktar": miktar,
-                "Oncelik": oncelik, "Tedarikci": tedarikci, "Not": notlar,
-                "Durum": "🕓 Bekliyor"
-            })
-            st.success("✅ Talep oluşturuldu.")
-    if st.session_state.purchases:
+            run(
+                "INSERT INTO purchases(tarih,gemi,malzeme,miktar,oncelik,tedarikci,notlar,durum) VALUES (?,?,?,?,?,?,?,?)",
+                (str(datetime.date.today()), gemi, malzeme, miktar, oncelik, tedarikci, notlar, "🕓 Bekliyor"),
+            )
+            st.success("✅ Talep oluşturuldu ve kalıcı olarak kaydedildi.")
+            st.rerun()
+
+    talep_df = df_from("SELECT * FROM purchases ORDER BY id DESC")
+    if not talep_df.empty:
         st.markdown("### 📋 Talep Listesi")
-        st.dataframe(pd.DataFrame(st.session_state.purchases), use_container_width=True)
+        durum_secenekleri = ["🕓 Bekliyor", "🚚 Sipariş Edildi", "✅ Teslim Alındı", "❌ İptal"]
+        for _, r in talep_df.iterrows():
+            with st.container():
+                c1, c2, c3 = st.columns([3, 2, 2])
+                c1.write("**" + r["malzeme"] + "** — " + r["gemi"] + " (" + str(r["miktar"]) + " adet, " + r["oncelik"] + ")")
+                c2.caption("Talep: " + r["tarih"] + (" · " + r["tedarikci"] if r["tedarikci"] else ""))
+                yeni_durum = c3.selectbox(
+                    "Durum", durum_secenekleri,
+                    index=durum_secenekleri.index(r["durum"]) if r["durum"] in durum_secenekleri else 0,
+                    key="talep_durum_" + str(r["id"]),
+                    label_visibility="collapsed",
+                )
+                if yeni_durum != r["durum"]:
+                    run("UPDATE purchases SET durum=? WHERE id=?", (yeni_durum, r["id"]))
+                    st.rerun()
+        st.dataframe(talep_df, use_container_width=True)
     else:
         st.info("Henüz talep oluşturulmadı.")
 
@@ -406,30 +590,35 @@ elif menu == "⚡ Megger Kayıtları":
             test_tarih = st.date_input("Test Tarihi", datetime.date.today())
             sonuc = st.selectbox("Sonuc", ["✅ Uygun", "⚠️ İzle", "❌ Uygun Değil"])
         if st.form_submit_button("💾 Kaydet") and devre:
-            st.session_state.megger_records.append({
-                "Tarih": str(test_tarih), "Gemi": gemi, "Devre": devre,
-                "Test V": test_v, "IR (MOhm)": ir_deger, "Sonuc": sonuc
-            })
-            st.success("✅ Kayit eklendi.")
-    if st.session_state.megger_records:
-        st.dataframe(pd.DataFrame(st.session_state.megger_records), use_container_width=True)
+            run(
+                "INSERT INTO megger(tarih,gemi,devre,test_v,ir_deger,sonuc) VALUES (?,?,?,?,?,?)",
+                (str(test_tarih), gemi, devre, test_v, ir_deger, sonuc),
+            )
+            st.success("✅ Kayit eklendi ve kalıcı olarak saklandı.")
+            st.rerun()
+
+    megger_df = df_from("SELECT * FROM megger ORDER BY id DESC")
+    if not megger_df.empty:
+        st.dataframe(megger_df, use_container_width=True)
     else:
         st.info("Henuz megger kaydi yok.")
 
 elif menu == "📄 Raporlama":
     st.subheader("📄 Excel Raporlama")
-    rapor_tipi = st.selectbox("Rapor Tipi", ["Filo Listesi", "Satınalma", "Megger Kayıtları"])
+    rapor_tipi = st.selectbox("Rapor Tipi", ["Filo Listesi", "Satınalma", "Megger Kayıtları", "Arızalar (Açık)"])
     if rapor_tipi == "Filo Listesi":
         df_rapor = fleet_df
     elif rapor_tipi == "Satınalma":
-        if st.session_state.purchases:
-            df_rapor = pd.DataFrame(st.session_state.purchases)
-        else:
+        df_rapor = df_from("SELECT * FROM purchases ORDER BY id DESC")
+        if df_rapor.empty:
+            df_rapor = pd.DataFrame([{"Not": "Kayit yok"}])
+    elif rapor_tipi == "Megger Kayıtları":
+        df_rapor = df_from("SELECT * FROM megger ORDER BY id DESC")
+        if df_rapor.empty:
             df_rapor = pd.DataFrame([{"Not": "Kayit yok"}])
     else:
-        if st.session_state.megger_records:
-            df_rapor = pd.DataFrame(st.session_state.megger_records)
-        else:
+        df_rapor = arizalar_yukle(sadece_acik=True)
+        if df_rapor.empty:
             df_rapor = pd.DataFrame([{"Not": "Kayit yok"}])
     st.dataframe(df_rapor, use_container_width=True)
     buffer = io.BytesIO()
