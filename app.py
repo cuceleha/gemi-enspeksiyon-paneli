@@ -64,7 +64,9 @@ with tab1:
     
     # Harita Merkezini Seçili Geminin Koordinatına Ayarla
     map_center = [secili_gemi_bilgi["Lat"], secili_gemi_bilgi["Lon"]]
-    m = folium.Map(location=map_center, zoom_start=8, tiles="CartoDB positron")
+    
+    # Ücretsiz ve API Anahtarı İstemeyen Standart Harita Katmanı
+    m = folium.Map(location=map_center, zoom_start=8, tiles="OpenStreetMap")
 
     color_map = {"🟢 Uygun": "green", "🟡 Takipte": "orange", "🔴 Kritik": "red"}
 
