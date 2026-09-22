@@ -1,405 +1,359 @@
 import streamlit as st
 import pandas as pd
 import datetime
+import io
+from fpdf import FPDF
 
-# ---------------------------------------------------------
-# SAYFA YAPILANDIRMASI
-# ---------------------------------------------------------
+# ---------- Sayfa Yapılandırması ----------
 st.set_page_config(
     page_title="TTS Ships - Elektrik Enspeksiyon & Filo Yönetim Paneli",
     page_icon="⚡",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-# ---------------------------------------------------------
-# FİLO VERİ SETİ (Doğrudan Çalışan Gemi Görsel Bağlantılarıyla)
-# ---------------------------------------------------------
-tts_fleet_data = [
-    {
-        "Gemi": "M/V MED STAR", "IMO": "9337028", "Tip": "Container", "DWT": "27254", "GRT": "23633", 
-        "Bayrak": "Panama", "Yıl": "2004", "LOA": "191.10 m", "Durum": "🟢 Operational", "ETO": "Ahmet YILMAZ", 
-        "Giris": "2026-06-15", "KontratAy": 4, "Foto": "https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=600&auto=format&fit=crop&q=80", 
-        "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Ahmet", 
-        "Arıza": "None", "Malzeme": "OK", "Denetim": "2027-02-15"
-    },
-    {
-        "Gemi": "M/T MOON STAR", "IMO": "9667928", "Tip": "Tanker", "DWT": "49997", "GRT": "29940", 
-        "Bayrak": "Liberia", "Yıl": "2013", "LOA": "183 m", "Durum": "🔴 Critical", "ETO": "Mehmet KAYA", 
-        "Giris": "2026-04-01", "KontratAy": 6, "Foto": "https://images.unsplash.com/photo-1544816155-12df9643f363?w=600&auto=format&fit=crop&q=80", 
-        "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Mehmet", 
-        "Arıza": "DG1 AVR Failure", "Malzeme": "AVR MX321 Pending", "Denetim": "2026-10-15"
-    },
-    {
-        "Gemi": "M/T KUZEY STAR II", "IMO": "9499175", "Tip": "Tanker", "DWT": "6107", "GRT": "4081", 
-        "Bayrak": "Malta", "Yıl": "2020", "LOA": "108.10 m", "Durum": "🟡 Monitoring", "ETO": "Caner DEMİR", 
-        "Giris": "2026-08-10", "KontratAy": 4, "Foto": "https://images.unsplash.com/photo-1516116216657-54baf1068684?w=600&auto=format&fit=crop&q=80", 
-        "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Caner", 
-        "Arıza": "Bilge Sensor Monitoring", "Malzeme": "Requisition Sent", "Denetim": "2026-11-01"
-    },
-    {
-        "Gemi": "M/V A380", "IMO": "9310915", "Tip": "Ro-Ro Cargo", "DWT": "1300", "GRT": "1285", 
-        "Bayrak": "Liberia", "Yıl": "2003", "LOA": "75 m", "Durum": "🟢 Operational", "ETO": "Emre ŞAHİN", 
-        "Giris": "2026-07-20", "KontratAy": 5, "Foto": "https://images.unsplash.com/photo-1524592724787-b0d08092d3e2?w=600&auto=format&fit=crop&q=80", 
-        "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Emre", 
-        "Arıza": "None", "Malzeme": "OK", "Denetim": "2027-01-10"
-    },
-    {
-        "Gemi": "M/V AKBABA", "IMO": "9319478", "Tip": "Ro-Ro Cargo", "DWT": "1300", "GRT": "1281", 
-        "Bayrak": "Liberia", "Yıl": "2004", "LOA": "75 m", "Durum": "🟢 Operational", "ETO": "Burak ÇELİK", 
-        "Giris": "2026-05-12", "KontratAy": 4, "Foto": "https://images.unsplash.com/photo-1494412574643-ff11b0a5c1c3?w=600&auto=format&fit=crop&q=80", 
-        "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Burak", 
-        "Arıza": "None", "Malzeme": "OK", "Denetim": "2026-12-20"
-    },
-    {
-        "Gemi": "M/V ALEXANDRA I", "IMO": "8876340", "Tip": "Bulk Carrier", "DWT": "60054", "GRT": "4048", 
-        "Bayrak": "Panama", "Yıl": "1991", "LOA": "138.40 m", "Durum": "🟢 Operational", "ETO": "Oğuz ÖZTÜRK", 
-        "Giris": "2026-06-01", "KontratAy": 4, "Foto": "https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=600&auto=format&fit=crop&q=80", 
-        "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Oguz", 
-        "Arıza": "None", "Malzeme": "Navigation Light Bulbs", "Denetim": "2027-03-05"
-    },
-    {
-        "Gemi": "M/V ALENA", "IMO": "8857772", "Tip": "Bulk Carrier", "DWT": "60594", "GRT": "4848", 
-        "Bayrak": "Panama", "Yıl": "1991", "LOA": "138.40 m", "Durum": "🟡 Monitoring", "ETO": "Serkan AYDIN", 
-        "Giris": "2026-04-15", "KontratAy": 6, "Foto": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80", 
-        "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Serkan", 
-        "Arıza": "Low Panel Insulation", "Malzeme": "Insulation Spray", "Denetim": "2026-10-28"
-    },
-    {
-        "Gemi": "M/V ATLANTIC STAR", "IMO": "9473327", "Tip": "Bulk Carrier", "DWT": "75002", "GRT": "41074", 
-        "Bayrak": "Liberia", "Yıl": "2011", "LOA": "225 m", "Durum": "🔴 Critical", "ETO": "Murat ASLAN", 
-        "Giris": "2026-03-10", "KontratAy": 6, "Foto": "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600&auto=format&fit=crop&q=80", 
-        "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Murat", 
-        "Arıza": "MSB Breaker (ACB) Trip", "Malzeme": "ACB Coil Set", "Denetim": "2026-10-02"
-    },
-    {
-        "Gemi": "M/V PACIFIC STAR", "IMO": "9470387", "Tip": "Bulk Carrier", "DWT": "78128", "GRT": "41718", 
-        "Bayrak": "Liberia", "Yıl": "2013", "LOA": "224.90 m", "Durum": "🟢 Operational", "ETO": "Volkan YILDIZ", 
-        "Giris": "2026-07-01", "KontratAy": 4, "Foto": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&auto=format&fit=crop&q=80", 
-        "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Volkan", 
-        "Arıza": "None", "Malzeme": "OK", "Denetim": "2027-04-12"
-    },
-    {
-        "Gemi": "M/V CHIEF SEATTLE", "IMO": "9230751", "Tip": "Bulk Carrier", "DWT": "52428", "GRT": "30174", 
-        "Bayrak": "Panama", "Yıl": "2001", "LOA": "189.99 m", "Durum": "🟢 Operational", "ETO": "Hasan ERDOĞAN", 
-        "Giris": "2026-08-01", "KontratAy": 5, "Foto": "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&auto=format&fit=crop&q=80", 
-        "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Hasan", 
-        "Arıza": "None", "Malzeme": "OK", "Denetim": "2027-05-18"
-    },
-    {
-        "Gemi": "M/V VENUS STAR", "IMO": "9609134", "Tip": "Bulk Carrier", "DWT": "80888", "GRT": "44025", 
-        "Bayrak": "Liberia", "Yıl": "2013", "LOA": "229 m", "Durum": "🟢 Operational", "ETO": "Ali ÖZKAN", 
-        "Giris": "2026-06-20", "KontratAy": 4, "Foto": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&auto=format&fit=crop&q=80", 
-        "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Ali", 
-        "Arıza": "None", "Malzeme": "OK", "Denetim": "2027-02-22"
-    },
-    {
-        "Gemi": "M/V MERCUR STAR", "IMO": "9609287", "Tip": "Bulk Carrier", "DWT": "79520", "GRT": "43501", 
-        "Bayrak": "Malta", "Yıl": "2015", "LOA": "229 m", "Durum": "🟢 Operational", "ETO": "Tolga TEKİN", 
-        "Giris": "2026-07-10", "KontratAy": 4, "Foto": "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=600&auto=format&fit=crop&q=80", 
-        "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Tolga", 
-        "Arıza": "None", "Malzeme": "OK", "Denetim": "2027-01-30"
-    },
-    {
-        "Gemi": "M/V DENİZ STAR", "IMO": "1071472", "Tip": "General Cargo", "DWT": "8300", "GRT": "6641", 
-        "Bayrak": "Liberia", "Yıl": "2025", "LOA": "142 m", "Durum": "🟢 Operational", "ETO": "Onur KOÇ", 
-        "Giris": "2026-08-15", "KontratAy": 4, "Foto": "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=600&auto=format&fit=crop&q=80", 
-        "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Onur", 
-        "Arıza": "None", "Malzeme": "OK", "Denetim": "2027-06-10"
-    },
-    {
-        "Gemi": "M/V BLACKSEA STAR", "IMO": "1114901", "Tip": "General Cargo", "DWT": "8330", "GRT": "6732", 
-        "Bayrak": "Liberia", "Yıl": "2025", "LOA": "142 m", "Durum": "🟢 Operational", "ETO": "Kaan YILMAZ", 
-        "Giris": "2026-07-25", "KontratAy": 4, "Foto": "https://images.unsplash.com/photo-1426604966848-d7adac902bff?w=600&auto=format&fit=crop&q=80", 
-        "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Kaan", 
-        "Arıza": "None", "Malzeme": "OK", "Denetim": "2027-07-01"
-    },
-    {
-        "Gemi": "M/V SAPHIRA", "IMO": "7924425", "Tip": "Live Stock", "DWT": "12900", "GRT": "38988", 
-        "Bayrak": "Antigua-Barbuda", "Yıl": "1995", "LOA": "185.82 m", "Durum": "🟡 Monitoring", "ETO": "Zafer GÜNEŞ", 
-        "Giris": "2026-05-01", "KontratAy": 5, "Foto": "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=600&auto=format&fit=crop&q=80", 
-        "EtoFoto": "https://api.dicebear.com/7.x/avataaars/svg?seed=Zafer", 
-        "Arıza": "Ventilation Fan Monitoring", "Malzeme": "Contactor Set", "Denetim": "2026-11-15"
+# ---------- CSS ----------
+st.markdown("""
+<style>
+    .main-header {
+        background: linear-gradient(90deg, #0b3d91 0%, #1e6fd9 100%);
+        padding: 20px; border-radius: 10px; color: white; margin-bottom: 20px;
     }
+    .main-header h1 { margin: 0; font-size: 26px; }
+    .main-header p { margin: 5px 0 0 0; opacity: 0.9; font-size: 14px; }
+    .metric-card {
+        background: #f8f9fa; border-left: 5px solid #1e6fd9;
+        padding: 12px 16px; border-radius: 8px;
+    }
+    .stButton>button { border-radius: 8px; }
+</style>
+""", unsafe_allow_html=True)
+
+# ---------- Başlık ----------
+st.markdown("""
+<div class="main-header">
+    <h1>⚡ TTS Ships - Gemi Elektrik Enspeksiyon & Filo Yönetim Paneli</h1>
+    <p>MarineTraffic entegrasyonu · Sertifika/Survey takibi · Satınalma · Teknik doküman kütüphanesi ·
+    ETO eğitim/PSC simülasyonu · Megger kayıtları · PDF/Excel raporlama</p>
+</div>
+""", unsafe_allow_html=True)
+
+# ---------- Session State ----------
+if "purchases" not in st.session_state:
+    st.session_state.purchases = []
+if "megger_records" not in st.session_state:
+    st.session_state.megger_records = []
+
+# ---------- Filo Verileri (TTS Ships - Gerçek Liste) ----------
+tts_fleet_data = [
+    {"Gemi": "M/V MED STAR",      "IMO": "9337028", "Tip": "Container",     "DWT": "27254",    "GRT": "23633", "Bayrak": "Panama",          "Yıl": "2004", "LOA": "191,10 m", "Durum": "🟢 Uygun", "ETO": "-", "Giris": "-", "Kontrat": "-"},
+    {"Gemi": "M/T MOON STAR",     "IMO": "9667928", "Tip": "Tanker",        "DWT": "49997",    "GRT": "29940", "Bayrak": "Liberia",         "Yıl": "2013", "LOA": "183 m",    "Durum": "🟢 Uygun", "ETO": "-", "Giris": "-", "Kontrat": "-"},
+    {"Gemi": "M/T KUZEY STAR II", "IMO": "9499175", "Tip": "Tanker",        "DWT": "6107",     "GRT": "4081",  "Bayrak": "Malta",           "Yıl": "2020", "LOA": "108,10 m", "Durum": "🟢 Uygun", "ETO": "-", "Giris": "-", "Kontrat": "-"},
+    {"Gemi": "M/V A380",          "IMO": "9310915", "Tip": "Ro-Ro Cargo",   "DWT": "1300",     "GRT": "1285",  "Bayrak": "Liberia",         "Yıl": "2003", "LOA": "75 m",     "Durum": "🟢 Uygun", "ETO": "-", "Giris": "-", "Kontrat": "-"},
+    {"Gemi": "M/V AKBABA",        "IMO": "9319478", "Tip": "Ro-Ro Cargo",   "DWT": "1300",     "GRT": "1281",  "Bayrak": "Liberia",         "Yıl": "2004", "LOA": "75 m",     "Durum": "🟢 Uygun", "ETO": "-", "Giris": "-", "Kontrat": "-"},
+    {"Gemi": "M/V ALEXANDRA I",   "IMO": "8876340", "Tip": "Bulk Carrier",  "DWT": "6005",     "GRT": "4949",  "Bayrak": "Panama",          "Yıl": "1991", "LOA": "138,40 m", "Durum": "🟢 Uygun", "ETO": "-", "Giris": "-", "Kontrat": "-"},
+    {"Gemi": "M/V ALENA",         "IMO": "8857772", "Tip": "Bulk Carrier",  "DWT": "6059",     "GRT": "4949",  "Bayrak": "Panama",          "Yıl": "1991", "LOA": "138,40 m", "Durum": "🟢 Uygun", "ETO": "-", "Giris": "-", "Kontrat": "-"},
+    {"Gemi": "M/V ATLANTIC STAR", "IMO": "9473327", "Tip": "Bulk Carrier",  "DWT": "75002,58", "GRT": "41074", "Bayrak": "Liberia",         "Yıl": "2011", "LOA": "225 m",    "Durum": "🟢 Uygun", "ETO": "-", "Giris": "-", "Kontrat": "-"},
+    {"Gemi": "M/V PACIFIC STAR",  "IMO": "9470387", "Tip": "Bulk Carrier",  "DWT": "78128",    "GRT": "41718", "Bayrak": "Liberia",         "Yıl": "2013", "LOA": "224,90 m", "Durum": "🟢 Uygun", "ETO": "-", "Giris": "-", "Kontrat": "-"},
+    {"Gemi": "M/V CHIEF SEATTLE", "IMO": "9230751", "Tip": "Bulk Carrier",  "DWT": "52428",    "GRT": "30174", "Bayrak": "Panama",          "Yıl": "2001", "LOA": "189,89 m", "Durum": "🟢 Uygun", "ETO": "-", "Giris": "-", "Kontrat": "-"},
+    {"Gemi": "M/V VENUS STAR",    "IMO": "9609134", "Tip": "Bulk Carrier",  "DWT": "80888",    "GRT": "44025", "Bayrak": "Liberia",         "Yıl": "2013", "LOA": "229 m",    "Durum": "🟢 Uygun", "ETO": "-", "Giris": "-", "Kontrat": "-"},
+    {"Gemi": "M/V MERCUR STAR",   "IMO": "9609287", "Tip": "Bulk Carrier",  "DWT": "79520",    "GRT": "43501", "Bayrak": "Malta",           "Yıl": "2015", "LOA": "229 m",    "Durum": "🟢 Uygun", "ETO": "-", "Giris": "-", "Kontrat": "-"},
+    {"Gemi": "M/V DENIZ STAR",    "IMO": "1071472", "Tip": "General Cargo", "DWT": "8300",     "GRT": "6641",  "Bayrak": "Liberia",         "Yıl": "2025", "LOA": "142 m",    "Durum": "🟢 Uygun", "ETO": "-", "Giris": "-", "Kontrat": "-"},
+    {"Gemi": "M/V BLACKSEA STAR", "IMO": "1114901", "Tip": "General Cargo", "DWT": "8330",     "GRT": "6732",  "Bayrak": "Liberia",         "Yıl": "2025", "LOA": "142 m",    "Durum": "🟢 Uygun", "ETO": "-", "Giris": "-", "Kontrat": "-"},
+    {"Gemi": "M/V SAPHIRA",       "IMO": "7924425", "Tip": "Live Stock",    "DWT": "12900",    "GRT": "38988", "Bayrak": "Antigua-Barbuda", "Yıl": "1995", "LOA": "185,82 m", "Durum": "🟢 Uygun", "ETO": "-", "Giris": "-", "Kontrat": "-"},
 ]
+fleet_df = pd.DataFrame(tts_fleet_data)
 
-df_fleet = pd.DataFrame(tts_fleet_data)
+# ---------- Sidebar Navigasyon ----------
+menu = st.sidebar.radio(
+    "📌 Navigasyon",
+    ["🏠 Dashboard",
+     "🚢 Filo Yönetimi",
+     "📜 Sertifika & Survey",
+     "🛒 Satınalma",
+     "📚 Teknik Dokümanlar",
+     "🎓 ETO Eğitim & PSC",
+     "⚡ Megger Kayıtları",
+     "📄 Raporlama"],
+)
+st.sidebar.markdown("---")
+st.sidebar.caption("© 2026 TTS Ships · v2.1")
 
-# ---------------------------------------------------------
-# SESSION STATE
-# ---------------------------------------------------------
-if "selected_ship" not in st.session_state:
-    st.session_state.selected_ship = None
+# ============================================================
+# 🏠 DASHBOARD
+# ============================================================
+if menu == "🏠 Dashboard":
+    st.subheader("📊 Filo Genel Durum")
 
-if "arizalar_db" not in st.session_state:
-    st.session_state.arizalar_db = []
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Toplam Gemi", len(fleet_df))
+    c2.metric("Uygun", (fleet_df["Durum"] == "🟢 Uygun").sum())
+    c3.metric("Bakım", (fleet_df["Durum"] == "🟡 Bakım").sum())
+    c4.metric("Arıza", (fleet_df["Durum"] == "🔴 Arıza").sum())
 
-if "megger_db" not in st.session_state:
-    st.session_state.megger_db = [
-        {"Gemi": "M/T MOON STAR", "Ekipman": "DG-1 Alternatör", "Megohm": "0.2 MΩ", "Tarih": "2026-09-01", "Durum": "🔴 Critical Low"},
-        {"Gemi": "M/V ATLANTIC STAR", "Ekipman": "MSB Şalter Motoru", "Megohm": "0.8 MΩ", "Tarih": "2026-09-10", "Durum": "🔴 Critical Low"},
-        {"Gemi": "M/T KUZEY STAR II", "Ekipman": "Sintine Pompası Motoru", "Megohm": "2.5 MΩ", "Tarih": "2026-09-12", "Durum": "🟡 Monitoring"}
+    st.markdown("---")
+    st.subheader("🚢 Filo Listesi")
+    st.dataframe(fleet_df, use_container_width=True)
+
+    st.subheader("📈 Gemi Tipi Dağılımı")
+    st.bar_chart(fleet_df["Tip"].value_counts())
+
+    st.subheader("🌍 Bayrak Dağılımı")
+    st.bar_chart(fleet_df["Bayrak"].value_counts())
+
+# ============================================================
+# 🚢 FİLO YÖNETİMİ
+# ============================================================
+elif menu == "🚢 Filo Yönetimi":
+    st.subheader("🚢 Filo Yönetimi")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        filter_tip = st.multiselect("Gemi Tipi", fleet_df["Tip"].unique(), default=list(fleet_df["Tip"].unique()))
+    with col2:
+        filter_bayrak = st.multiselect("Bayrak", fleet_df["Bayrak"].unique(), default=list(fleet_df["Bayrak"].unique()))
+    with col3:
+        search = st.text_input("🔍 Gemi / IMO Ara")
+
+    filtered = fleet_df[fleet_df["Tip"].isin(filter_tip) & fleet_df["Bayrak"].isin(filter_bayrak)]
+    if search:
+        filtered = filtered[
+            filtered["Gemi"].str.contains(search, case=False, na=False) |
+            filtered["IMO"].str.contains(search, case=False, na=False)
+        ]
+
+    st.dataframe(filtered, use_container_width=True)
+    st.caption(f"Toplam {len(filtered)} gemi gösteriliyor.")
+
+    with st.expander("➕ Yeni Gemi Ekle"):
+        with st.form("yeni_gemi"):
+            gemi = st.text_input("Gemi Adı")
+            imo = st.text_input("IMO")
+            tip = st.selectbox("Tip", ["Container", "Tanker", "Bulk Carrier", "Ro-Ro Cargo", "General Cargo", "Live Stock"])
+            dwt = st.text_input("DWT")
+            grt = st.text_input("GRT")
+            bayrak = st.text_input("Bayrak")
+            yil = st.text_input("Yıl")
+            loa = st.text_input("LOA")
+            eto = st.text_input("ETO")
+            submit = st.form_submit_button("Kaydet")
+            if submit and gemi and imo:
+                st.success(f"✅ {gemi} (IMO {imo}) kaydedildi (demo).")
+
+# ============================================================
+# 📜 SERTİFİKA & SURVEY TAKİBİ
+# ============================================================
+elif menu == "📜 Sertifika & Survey":
+    st.subheader("📜 Sertifika & Survey Takibi")
+
+    today = datetime.date.today()
+    cert_data = [
+        {"Gemi": "M/V MED STAR",      "Sertifika": "Safety Equipment (SE)",    "Bitiş": today + datetime.timedelta(days=15),  "Durum": "🟡 Yakında"},
+        {"Gemi": "M/V MED STAR",      "Sertifika": "Load Line (LL)",           "Bitiş": today + datetime.timedelta(days=180), "Durum": "🟢 Geçerli"},
+        {"Gemi": "M/T MOON STAR",     "Sertifika": "IOPP",                     "Bitiş": today + datetime.timedelta(days=5),   "Durum": "🔴 Kritik"},
+        {"Gemi": "M/T MOON STAR",     "Sertifika": "Safety Construction (SC)", "Bitiş": today + datetime.timedelta(days=240), "Durum": "🟢 Geçerli"},
+        {"Gemi": "M/T KUZEY STAR II", "Sertifika": "ISSC",                     "Bitiş": today + datetime.timedelta(days=90),  "Durum": "🟢 Geçerli"},
+        {"Gemi": "M/V ATLANTIC STAR", "Sertifika": "IAPP",                     "Bitiş": today - datetime.timedelta(days=3),   "Durum": "🔴 Süresi Geçti"},
+        {"Gemi": "M/V PACIFIC STAR",  "Sertifika": "Class Certificate",        "Bitiş": today + datetime.timedelta(days=45),  "Durum": "🟡 Yakında"},
+        {"Gemi": "M/V VENUS STAR",    "Sertifika": "Safety Equipment (SE)",    "Bitiş": today + datetime.timedelta(days=200), "Durum": "🟢 Geçerli"},
+        {"Gemi": "M/V MERCUR STAR",   "Sertifika": "Load Line (LL)",           "Bitiş": today + datetime.timedelta(days=12),  "Durum": "🟡 Yakında"},
+        {"Gemi": "M/V SAPHIRA",       "Sertifika": "IOPP",                     "Bitiş": today + datetime.timedelta(days=320), "Durum": "🟢 Geçerli"},
+    ]
+    cert_df = pd.DataFrame(cert_data)
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Toplam Sertifika", len(cert_df))
+    c2.metric("Kritik", ((cert_df["Durum"] == "🔴 Kritik") | (cert_df["Durum"] == "🔴 Süresi Geçti")).sum())
+    c3.metric("Yakında", (cert_df["Durum"] == "🟡 Yakında").sum())
+
+    st.dataframe(cert_df, use_container_width=True)
+
+# ============================================================
+# 🛒 SATINALMA
+# ============================================================
+elif menu == "🛒 Satınalma":
+    st.subheader("🛒 Satınalma Talepleri")
+
+    with st.form("talep_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            gemi = st.selectbox("Gemi", fleet_df["Gemi"].tolist())
+            malzeme = st.text_input("Malzeme / Ekipman")
+            miktar = st.number_input("Miktar", min_value=1, value=1)
+        with col2:
+            oncelik = st.selectbox("Öncelik", ["Normal", "Yüksek", "Acil"])
+            tedarikci = st.text_input("Tedarikçi (opsiyonel)")
+            notlar = st.text_area("Notlar")
+
+        if st.form_submit_button("📨 Talep Oluştur") and malzeme:
+            st.session_state.purchases.append({
+                "Tarih": datetime.date.today(),
+                "Gemi": gemi, "Malzeme": malzeme, "Miktar": miktar,
+                "Öncelik": oncelik, "Tedarikçi": tedarikci, "Not": notlar,
+                "Durum": "🕓 Bekliyor"
+            })
+            st.success("✅ Talep oluşturuldu.")
+
+    if st.session_state.purchases:
+        st.markdown("### 📋 Talep Listesi")
+        st.dataframe(pd.DataFrame(st.session_state.purchases), use_container_width=True)
+    else:
+        st.info("Henüz talep oluşturulmadı.")
+
+# ============================================================
+# 📚 TEKNİK DOKÜMANLAR
+# ============================================================
+elif menu == "📚 Teknik Dokümanlar":
+    st.subheader("📚 Teknik Doküman Kütüphanesi")
+
+    docs = pd.DataFrame([
+        {"Kategori": "Manuel", "Doküman": "Ana Şalter Panosu (MSB) Manual",       "Gemi": "M/V MED STAR",      "Rev": "R3"},
+        {"Kategori": "Şema",   "Doküman": "Tek Hat Şeması (SLD)",                  "Gemi": "M/V MED STAR",      "Rev": "R5"},
+        {"Kategori": "Manuel", "Doküman": "Jeneratör Kontrol Panosu Manual",       "Gemi": "M/T MOON STAR",     "Rev": "R2"},
+        {"Kategori": "Şema",   "Doküman": "Aydınlatma Şeması",                     "Gemi": "M/V ATLANTIC STAR", "Rev": "R1"},
+        {"Kategori": "Test",   "Doküman": "Megger Test Prosedürü (IR)",            "Gemi": "Tüm Filo",          "Rev": "R4"},
+        {"Kategori": "Class",  "Doküman": "Class Rules - Electrical Installations","Gemi": "Tüm Filo",          "Rev": "2025"},
+        {"Kategori": "Manuel", "Doküman": "Bow Thruster Elektrik Manual",          "Gemi": "M/V A380",          "Rev": "R1"},
+    ])
+    st.dataframe(docs, use_container_width=True)
+
+    kat = st.selectbox("Kategori Filtre", ["Tümü"] + sorted(docs["Kategori"].unique().tolist()))
+    if kat != "Tümü":
+        st.dataframe(docs[docs["Kategori"] == kat], use_container_width=True)
+
+# ============================================================
+# 🎓 ETO EĞİTİM & PSC
+# ============================================================
+elif menu == "🎓 ETO Eğitim & PSC":
+    st.subheader("🎓 ETO Eğitim & PSC Simülasyonu")
+
+    quiz = [
+        {"Soru": "AC devrede Insulation Resistance (IR) minimum kaç MΩ olmalıdır?",
+         "Secenekler": ["0.1 MΩ", "0.5 MΩ", "1 MΩ", "5 MΩ"], "Cevap": "1 MΩ"},
+        {"Soru": "Megaohmmetre (Megger) testinde kullanılan gerilim hangisidir?",
+         "Secenekler": ["12 V DC", "110 V AC", "500 V DC", "380 V AC"], "Cevap": "500 V DC"},
+        {"Soru": "PSC'de '30 saniye kuralı' hangi konuyla ilgilidir?",
+         "Secenekler": ["Emergency Generator", "Steering Gear", "Fire Pump", "Bilge Pump"], "Cevap": "Steering Gear"},
+        {"Soru": "Emergency Switchboard hangi besleme kaynağını kullanır?",
+         "Secenekler": ["Main Switchboard", "Emergency Generator", "Shore Power", "Bus Tie"], "Cevap": "Emergency Generator"},
+        {"Soru": "Motor overload koruma cihazı hangisidir?",
+         "Secenekler": ["MCB", "RCD", "Thermal Overload Relay", "Fuse"], "Cevap": "Thermal Overload Relay"},
     ]
 
-# ---------------------------------------------------------
-# YAN MENÜ (SIDEBAR)
-# ---------------------------------------------------------
-st.sidebar.title("⚡ TTS Inspector Panel")
-st.sidebar.subheader("👨‍💼 Electrical Inspector")
-st.sidebar.info("Ceyhun ÜCELEHAN")
+    if "quiz_idx" not in st.session_state:
+        st.session_state.quiz_idx = 0
+        st.session_state.score = 0
 
-st.sidebar.divider()
+    if st.session_state.quiz_idx < len(quiz):
+        q = quiz[st.session_state.quiz_idx]
+        st.markdown(f"**Soru {st.session_state.quiz_idx + 1}/{len(quiz)}:** {q['Soru']}")
+        secim = st.radio("Cevap:", q["Secenekler"], key=f"q{st.session_state.quiz_idx}")
 
-gemi_secenekleri = ["-- Fleet Overview --"] + df_fleet["Gemi"].tolist()
-
-def on_select_change():
-    secilen = st.session_state.sidebar_select
-    if secilen == "-- Fleet Overview --":
-        st.session_state.selected_ship = None
+        if st.button("✅ Onayla"):
+            if secim == q["Cevap"]:
+                st.session_state.score += 1
+                st.success("Doğru!")
+            else:
+                st.error(f"Yanlış. Doğru cevap: {q['Cevap']}")
+            st.session_state.quiz_idx += 1
+            st.rerun()
     else:
-        st.session_state.selected_ship = secilen
-
-current_idx = 0
-if st.session_state.selected_ship in df_fleet["Gemi"].tolist():
-    current_idx = gemi_secenekleri.index(st.session_state.selected_ship)
-
-st.sidebar.selectbox(
-    "Select Vessel / View Details",
-    gemi_secenekleri,
-    index=current_idx,
-    key="sidebar_select",
-    on_change=on_select_change
-)
-
-st.sidebar.divider()
-st.sidebar.markdown("### 📊 Fleet Summary")
-st.sidebar.write(f"• **Total Vessels:** {len(df_fleet)}")
-st.sidebar.write(f"• **Critical Issues:** {len(df_fleet[df_fleet['Durum'] == '🔴 Critical'])}")
-st.sidebar.write(f"• **Under Monitoring:** {len(df_fleet[df_fleet['Durum'] == '🟡 Monitoring'])}")
-
-# =========================================================
-# 🏠 PAGE 1: FLEET OVERVIEW
-# =========================================================
-if st.session_state.selected_ship is None:
-    st.title("⚡ TTS Ships - Fleet Management & Inspection Panel")
-    st.markdown("Overview of all fleet vessels, assigned ETOs, and operational status.")
-
-    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    toplam_gemi = len(df_fleet)
-    kritik_sayisi = len(df_fleet[df_fleet["Durum"] == "🔴 Critical"])
-    malzeme_sayisi = len(df_fleet[df_fleet["Malzeme"] != "OK"])
-
-    kpi1.metric("🚢 Total Fleet Vessels", f"{toplam_gemi} Ships")
-    kpi2.metric("🔴 Critical Electrical Defect", f"{kritik_sayisi} Ships", delta="-2 Action Required", delta_color="inverse")
-    kpi3.metric("🛒 Material / Spare Requisition", f"{malzeme_sayisi} Ships", delta="In Procurement")
-    kpi4.metric("📅 Inspection Due (30 Days)", "3 Ships", delta="Upcoming", delta_color="off")
-
-    st.divider()
-
-    col_t1, col_t2 = st.columns(2)
-    with col_t1:
-        st.subheader("🚨 Critical & Monitored Defects")
-        ariza_df = df_fleet[df_fleet["Durum"].isin(["🔴 Critical", "🟡 Monitoring"])][["Gemi", "Durum", "Arıza", "ETO"]]
-        st.dataframe(ariza_df, use_container_width=True, hide_index=True)
-
-    with col_t2:
-        st.subheader("🛒 Pending Spare Parts")
-        malz_df = df_fleet[df_fleet["Malzeme"] != "OK"][["Gemi", "Malzeme", "Durum", "ETO"]]
-        st.dataframe(malz_df, use_container_width=True, hide_index=True)
-
-    st.divider()
-
-    st.subheader("📷 TTS Fleet Vessel Cards (Select Vessel for Details)")
-    
-    cols_per_row = 3
-    for i in range(0, len(tts_fleet_data), cols_per_row):
-        cols = st.columns(cols_per_row)
-        for j in range(cols_per_row):
-            if i + j < len(tts_fleet_data):
-                g = tts_fleet_data[i + j]
-                with cols[j]:
-                    st.image(g["Foto"], caption=f"{g['Gemi']} ({g['Tip']})", use_container_width=True)
-                    
-                    st.markdown(f"### {g['Gemi']}")
-                    st.caption(f"**IMO:** {g['IMO']} | **Type:** {g['Tip']} | **Flag:** {g['Bayrak']}")
-                    st.markdown(f"* **Electrical Status:** {g['Durum']}")
-                    st.markdown(f"* **Assigned ETO:** 👨‍✈️ {g['ETO']}")
-                    st.markdown(f"* **Current Defect:** `{g['Arıza']}`")
-                    
-                    if st.button(f"🔍 Go to {g['Gemi']} Panel", key=f"btn_gemi_{g['IMO']}", use_container_width=True):
-                        st.session_state.selected_ship = g['Gemi']
-                        st.rerun()
-                    st.divider()
-
-# =========================================================
-# 🚢 PAGE 2: VESSEL DETAILS PANEL
-# =========================================================
-else:
-    gemi_adi = st.session_state.selected_ship
-    secili_gemi = df_fleet[df_fleet["Gemi"] == gemi_adi].iloc[0]
-
-    if st.button("⬅️ Back to Fleet Overview", type="secondary"):
-        st.session_state.selected_ship = None
-        st.rerun()
-
-    st.title(f"🚢 {gemi_adi} - Inspection & Electrical Panel")
-
-    st.sidebar.divider()
-    st.sidebar.markdown(f"### 📋 {gemi_adi} Particulars")
-    st.sidebar.markdown(f"""
-    * **IMO No:** {secili_gemi['IMO']}
-    * **Vessel Type:** {secili_gemi['Tip']}
-    * **Flag:** {secili_gemi['Bayrak']}
-    * **DWT / GRT:** {secili_gemi['DWT']} / {secili_gemi['GRT']}
-    * **LOA:** {secili_gemi['LOA']}
-    * **Built:** {secili_gemi['Yıl']}
-    * **Status:** {secili_gemi['Durum']}
-    """)
-
-    st.sidebar.subheader("👨‍✈️ Onboard ETO")
-    st.sidebar.image(secili_gemi['EtoFoto'], caption=f"ETO: {secili_gemi['ETO']}", width=100)
-    st.sidebar.write(f"**Sign-on Date:** {secili_gemi['Giris']}")
-    st.sidebar.write(f"**Contract Duration:** {secili_gemi['KontratAy']} Months")
-
-    tab_canli, tab_ariza, tab_megger, tab_malzeme, tab_rapor = st.tabs([
-        "🌐 Live Tracking & AIS",
-        "📋 Defect Report & Photos",
-        "⚡ Megger (Insulation) Test Table",
-        "🛒 Spare Part Requisition",
-        "📄 Inspection Report Output"
-    ])
-
-    with tab_canli:
-        st.subheader(f"⚓ {gemi_adi} Live AIS Tracking")
-        st.info("Live AIS data and vessel tracking.")
-        
-        mt_link = f"https://www.marinetraffic.com/en/ais/details/ships/imo:{secili_gemi['IMO']}"
-        st.link_button(f"🌐 Open {gemi_adi} on MarineTraffic", mt_link, type="primary")
-        
-        c_col1, c_col2 = st.columns([2, 1])
-        with c_col1:
-            st.image(secili_gemi["Foto"], caption=f"{gemi_adi} Image", use_container_width=True)
-        with c_col2:
-            st.markdown("#### 📍 Last Reported Status")
-            st.write(f"**Last Inspection:** {secili_gemi['Denetim']}")
-            st.write(f"**Current Defect Status:** {secili_gemi['Arıza']}")
-            st.write(f"**Spare Requisition:** {secili_gemi['Malzeme']}")
-
-    with tab_ariza:
-        st.subheader("📋 Defect Reporting Panel")
-        
-        col_a1, col_a2 = st.columns([1, 1])
-        with col_a1:
-            ekipman = st.selectbox(
-                "Defective System / Equipment",
-                ["Diesel Generator (DG1 / DG2 / DG3)", "Main Switchboard (MSB)", "Steering Gear Panel", "Bilge Separator", "Navigation Lights", "Deck Cranes / Winch", "Other"]
-            )
-            ariza_detay = st.text_area("Defect Description & Inspector Note", value=secili_gemi['Arıza'])
-            oncelik = st.select_slider("Priority", options=["Low", "Medium", "High", "🔴 CRITICAL / URGENT"])
-            
-        with col_a2:
-            st.markdown("#### 📷 Upload Defect Photo")
-            uploaded_file = st.file_uploader("Upload Image (JPG, PNG)", type=["jpg", "jpeg", "png"])
-            if uploaded_file is not None:
-                st.image(uploaded_file, caption="Uploaded Image", width=300)
-            
-            if st.button("💾 Save Defect Record", type="primary"):
-                st.session_state.arizalar_db.append({
-                    "Gemi": gemi_adi,
-                    "Ekipman": ekipman,
-                    "Detay": ariza_detay,
-                    "Öncelik": oncelik,
-                    "Tarih": datetime.date.today().strftime("%Y-%m-%d")
-                })
-                st.success("Defect record saved successfully!")
-
-        st.divider()
-        st.markdown("#### 📜 Defect History")
-        gemi_arizalari = [a for a in st.session_state.arizalar_db if a["Gemi"] == gemi_adi]
-        if gemi_arizalari:
-            st.dataframe(pd.DataFrame(gemi_arizalari), use_container_width=True)
-        else:
-            st.info("No active defect records logged for this vessel.")
-
-    with tab_megger:
-        st.subheader("⚡ Megger (Insulation Resistance) Test Log")
-        st.caption("Periodic insulation resistance measurements in Megohms (MΩ).")
-        
-        gemi_megger = [m for m in st.session_state.megger_db if m["Gemi"] == gemi_adi]
-        if gemi_megger:
-            st.table(pd.DataFrame(gemi_megger)[["Ekipman", "Megohm", "Tarih", "Durum"]])
-        else:
-            st.warning("No Megger record found for this vessel.")
-
-        st.divider()
-        st.markdown("#### ➕ Add New Measurement")
-        m1, m2, m3, m4 = st.columns(4)
-        m_ekipman = m1.text_input("Equipment (e.g. DG-1 Stator)")
-        m_val = m2.number_input("Measured (MΩ)", min_value=0.0, max_value=1000.0, value=5.0, step=0.1)
-        m_durum = m3.selectbox("Status", ["🟢 Excellent (>100 MΩ)", "🟢 Good (>5 MΩ)", "🟡 Monitor (1-5 MΩ)", "🔴 Critical (<1 MΩ)"])
-        
-        if m4.button("⚡ Save Log"):
-            st.session_state.megger_db.append({
-                "Gemi": gemi_adi,
-                "Ekipman": m_ekipman,
-                "Megohm": f"{m_val} MΩ",
-                "Tarih": datetime.date.today().strftime("%Y-%m-%d"),
-                "Durum": m_durum
-            })
-            st.success("Megger log updated!")
+        st.balloons()
+        st.success(f"🎉 Sınav tamamlandı! Skor: {st.session_state.score}/{len(quiz)}")
+        if st.button("🔄 Yeniden Başla"):
+            st.session_state.quiz_idx = 0
+            st.session_state.score = 0
             st.rerun()
 
-    with tab_malzeme:
-        st.subheader("🛒 Electrical Spare Part Requisition")
-        st.write(f"**Current Requisition Status:** `{secili_gemi['Malzeme']}`")
-        
-        col_m1, col_m2 = st.columns(2)
-        with col_m1:
-            parca_adi = st.text_input("Requested Equipment / Part", value="" if secili_gemi['Malzeme'] == "OK" else secili_gemi['Malzeme'])
-            parca_adet = st.number_input("Quantity", min_value=1, value=1)
-            parca_kod = st.text_input("IMPA Code (Optional)", placeholder="e.g. 33 01 22")
-        with col_m2:
-            liman = st.selectbox("Supply Port", ["Istanbul / Turkey", "Singapore", "Rotterdam / Netherlands", "Suez / Egypt", "Tuzla Shipyard"])
-            aciklama = st.text_area("Purchase Notes", placeholder="Urgency, voltage/current specifications, etc.")
-            
-        if st.button("🚀 Send Requisition to Technical Purchasing", type="primary"):
-            st.success(f"Requisition for {parca_adi} ({parca_adet} Pcs) sent successfully!")
+# ============================================================
+# ⚡ MEGGER KAYITLARI
+# ============================================================
+elif menu == "⚡ Megger Kayıtları":
+    st.subheader("⚡ Megger / Insulation Resistance (IR) Kayıtları")
 
-    with tab_rapor:
-        st.subheader("📄 Electrical Inspection Report Output")
-        
-        rapor_taslak = f"""
-====================================================================
-            TTS SHIPS ELECTRICAL INSPECTION REPORT
-====================================================================
-DATE        : {datetime.date.today().strftime('%d.%m.%Y')}
-INSPECTOR   : Ceyhun ÜCELEHAN
-VESSEL NAME : {gemi_adi}
-IMO NO      : {secili_gemi['IMO']} | FLAG: {secili_gemi['Bayrak']}
-TYPE        : {secili_gemi['Tip']} | LOA: {secili_gemi['LOA']}
-ONBOARD ETO : {secili_gemi['ETO']}
+    with st.form("megger_form"):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            gemi = st.selectbox("Gemi", fleet_df["Gemi"].tolist(), key="megger_gemi")
+            devre = st.text_input("Devre / Ekipman")
+        with col2:
+            test_v = st.selectbox("Test Gerilimi", ["500 V DC", "1000 V DC", "2500 V DC"])
+            ir_deger = st.number_input("IR Değeri (MΩ)", min_value=0.0, value=100.0, step=0.1)
+        with col3:
+            test_tarih = st.date_input("Test Tarihi", datetime.date.today())
+            sonuc = st.selectbox("Sonuç", ["✅ Uygun", "⚠️ İzle", "❌ Uygun Değil"])
 
-1. ELECTRICAL SYSTEM OVERVIEW
---------------------------------------------------------------------
-• Status               : {secili_gemi['Durum']}
-• Active Defect        : {secili_gemi['Arıza']}
-• Spare Part Status    : {secili_gemi['Malzeme']}
+        if st.form_submit_button("💾 Kaydet") and devre:
+            st.session_state.megger_records.append({
+                "Tarih": test_tarih, "Gemi": gemi, "Devre": devre,
+                "Test V": test_v, "IR (MΩ)": ir_deger, "Sonuç": sonuc
+            })
+            st.success("✅ Kayıt eklendi.")
 
-2. INSPECTOR ASSESSMENT & REMARKS
---------------------------------------------------------------------
-• Main Switchboard (MSB) and Generators inspected.
-• Megger test logs recorded.
-• Maintenance plan reviewed with Onboard ETO ({secili_gemi['ETO']}).
+    if st.session_state.megger_records:
+        st.dataframe(pd.DataFrame(st.session_state.megger_records), use_container_width=True)
+    else:
+        st.info("Henüz megger kaydı yok.")
 
-====================================================================
-Generated by: TTS Inspector Panel v2.0
-====================================================================
-        """
-        
-        st.text_area("📄 Report Preview", rapor_taslak, height=280)
+# ============================================================
+# 📄 RAPORLAMA
+# ============================================================
+elif menu == "📄 Raporlama":
+    st.subheader("📄 PDF & Excel Raporlama")
+
+    rapor_tipi = st.selectbox("Rapor Tipi", ["Filo Listesi", "Satınalma", "Megger Kayıtları"])
+
+    if rapor_tipi == "Filo Listesi":
+        df_rapor = fleet_df
+    elif rapor_tipi == "Satınalma":
+        df_rapor = pd.DataFrame(st.session_state.purchases) if st.session_state.purchases else pd.DataFrame([{"Not": "Kayıt yok"}])
+    else:
+        df_rapor = pd.DataFrame(st.session_state.megger_records) if st.session_state.megger_records else pd.DataFrame([{"Not": "Kayıt yok"}])
+
+    st.dataframe(df_rapor, use_container_width=True)
+
+    col1, col2 = st.columns(2)
+
+    # --- Excel ---
+    with col1:
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+            df_rapor.to_excel(writer, index=False, sheet_name="Rapor")
         st.download_button(
-            label="📥 Download Report (.TXT)",
-            data=rapor_taslak,
-            file_name=f"{gemi_adi.replace('/', '_')}_Inspection_Report.txt",
-            mime="text/plain"
+            "⬇️ Excel İndir",
+            data=buffer.getvalue(),
+            file_name=f"tts_ships_{rapor_tipi.lower().replace(' ', '_')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+    # --- PDF ---
+    with col2:
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.cell(0, 10, "TTS Ships - Rapor", ln=True, align="C")
+        pdf.set_font("Helvetica", "", 10)
+        pdf.cell(0, 8, f"Rapor Tipi: {rapor_tipi}", ln=True)
+        pdf.cell(0, 8, f"Tarih: {datetime.date.today()}", ln=True)
+        pdf.ln(4)
+
+        cols = list(df_rapor.columns)
+        col_w = 190 / max(len(cols), 1)
+        pdf.set_font("Helvetica", "B", 9)
+        for c in cols:
+            pdf.cell(col_w, 8, str(c)[:20], border=1)
+        pdf.ln()
+
+        pdf.set_font("Helvetica", "", 8)
+        for _, row in df_rapor.iterrows():
+            for c in cols:
+                pdf.cell(col_w, 8, str(row[c])[:22], border=1)
+            pdf.ln()
+
+        pdf_bytes = pdf.output(dest="S").encode("latin-1", errors="replace")
+        st.download_button(
+            "⬇️ PDF İndir",
+            data=pdf_bytes,
+            file_name=f"tts_ships_{rapor_tipi.lower().replace(' ', '_')}.pdf",
+            mime="application/pdf",
         )
