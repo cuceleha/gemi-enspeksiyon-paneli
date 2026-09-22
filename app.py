@@ -22,7 +22,6 @@ st.markdown("""
     .main-header h1 { margin: 0; font-size: 26px; }
     .main-header p { margin: 5px 0 0 0; opacity: 0.9; font-size: 14px; }
 
-    /* Gemi Kartı - 2 sütunlu (sol foto, sağ bilgi) */
     .ship-card {
         background: #ffffff;
         border: 1px solid #e3e8ef;
@@ -80,8 +79,6 @@ st.markdown("""
         color: #7a8699;
         margin-top: 2px;
     }
-
-    /* Kontrat bar */
     .contract-box {
         margin-top: 8px;
         font-size: 10.5px;
@@ -118,7 +115,6 @@ st.markdown("""
     .contract-remaining.warn { color: #d97706; }
     .contract-remaining.err  { color: #b91c1c; }
 
-    /* Sağ taraf - gemi bilgisi */
     .ship-right { flex: 1; min-width: 0; }
     .ship-name {
         font-weight: 700;
@@ -171,7 +167,6 @@ if "megger_records" not in st.session_state:
     st.session_state.megger_records = []
 
 # ---------- Filo Verileri (ETO + Kontrat bilgileri dahil) ----------
-# Giris: gemiye katılış tarihi | KontratBitis: sözleşme bitiş tarihi
 tts_fleet_data = [
     {"Gemi": "M/V MED STAR",      "IMO": "9337028", "Tip": "Container",     "DWT": "27254",    "GRT": "23633", "Bayrak": "Panama",          "Yıl": "2004", "LOA": "191,10 m", "Durum": "🟢 Uygun",
      "ETO": "Ahmet YILMAZ",     "Giris": "2025-06-15", "KontratBitis": "2026-06-15"},
@@ -206,7 +201,7 @@ tts_fleet_data = [
 ]
 fleet_df = pd.DataFrame(tts_fleet_data)
 
-# ---------- Yardımcı: Durum CSS sınıfı ----------
+# ---------- Yardımcı Fonksiyonlar ----------
 def durum_class(durum: str) -> str:
     if "Arıza" in durum or "Süresi" in durum:
         return "err"
@@ -214,9 +209,8 @@ def durum_class(durum: str) -> str:
         return "warn"
     return ""
 
-# ---------- Yardımcı: Kontrat hesaplama ----------
 def kontrat_bilgi(giris_str: str, bitis_str: str):
-    """Geriye (toplam_gün, geçen_gün, kalan_gün, yüzde, durum_class) döner."""
+    """(toplam_gün, geçen_gün, kalan_gün, yüzde, durum_class) döner."""
     try:
         giris = datetime.date.fromisoformat(giris_str)
         bitis = datetime.date.fromisoformat(bitis_str)
@@ -233,7 +227,6 @@ def kontrat_bilgi(giris_str: str, bitis_str: str):
 
     yuzde = max(0, min(100, int((gecen / toplam) * 100)))
 
-    # Renk kuralı
     if kalan < 0:
         cls = "err"
     elif kalan <= 30 or yuzde >= 85:
@@ -245,14 +238,12 @@ def kontrat_bilgi(giris_str: str, bitis_str: str):
 
     return toplam, gecen, kalan, yuzde, cls
 
-# ---------- Yardımcı: ETO baş harfleri ----------
 def eto_initials(isim: str) -> str:
     parts = isim.strip().split()
     if len(parts) >= 2:
         return (parts[0][0] + parts[-1][0]).upper()
     return isim[:2].upper()
 
-# ---------- Yardımcı: Kart HTML (ETO foto + kontrat bar) ----------
 def ship_card_html(row) -> str:
     cls = durum_class(row["Durum"])
     tip_emoji = {
@@ -264,14 +255,13 @@ def ship_card_html(row) -> str:
         "Live Stock": "🐄",
     }.get(row["Tip"], "🚢")
 
-    # ETO fotoğrafı: varsa göster, yoksa baş harf placeholder
+    # ETO fotoğrafı (varsa) yoksa baş harfler
     eto_img_path = row.get("EtoFoto", "")
     if eto_img_path:
         eto_block = f'<img class="eto-photo" src="{eto_img_path}" alt="{row["ETO"]}"/>'
     else:
         eto_block = f'<div class="eto-placeholder">{eto_initials(row["ETO"])}</div>'
 
-    # Kontrat bilgisi
     toplam, gecen, kalan, yuzde, kcls = kontrat_bilgi(row["Giris"], row["KontratBitis"])
 
     if kalan < 0:
@@ -291,7 +281,6 @@ def ship_card_html(row) -> str:
                 {eto_block}
                 <div class="eto-name">👨‍✈️ {row['ETO']}</div>
                 <div class="eto-role">Baş Elektrik Zabiti (ETO)</div>
-
                 <div class="contract-box">
                     <div class="contract-dates">
                         <span>📅 {giris_fmt}</span>
@@ -303,7 +292,6 @@ def ship_card_html(row) -> str:
                     <div class="contract-remaining {kcls}">{kalan_text}</div>
                 </div>
             </div>
-
             <div class="ship-right">
                 <div class="ship-name">{tip_emoji} {row['Gemi']}</div>
                 <div class="ship-imo">IMO: {row['IMO']} · {row['Tip']}</div>
@@ -334,7 +322,7 @@ st.sidebar.markdown("---")
 st.sidebar.caption("© 2026 TTS Ships · v3.2")
 
 # ============================================================
-# 🏠 DASHBOARD — KART GÖRÜNÜMÜ (ETO + Kontrat)
+# 🏠 DASHBOARD
 # ============================================================
 if menu == "🏠 Dashboard":
     st.subheader("📊 Filo Genel Durum")
@@ -348,7 +336,6 @@ if menu == "🏠 Dashboard":
     st.markdown("---")
     st.subheader("🚢 Filo Kartları · ETO & Kontrat Takibi")
 
-    # Filtreler
     f1, f2, f3 = st.columns([1, 1, 1])
     with f1:
         tip_sec = st.multiselect("Tip Filtre", sorted(fleet_df["Tip"].unique()), default=sorted(fleet_df["Tip"].unique()))
@@ -367,7 +354,6 @@ if menu == "🏠 Dashboard":
 
     st.caption(f"Toplam **{len(filtreli)}** gemi gösteriliyor.")
 
-    # Kart grid — 3 sütun
     COLS = 3
     rows = filtreli.to_dict("records")
     for i in range(0, len(rows), COLS):
@@ -385,7 +371,7 @@ if menu == "🏠 Dashboard":
     st.bar_chart(fleet_df["Bayrak"].value_counts())
 
 # ============================================================
-# 🚢 FİLO YÖNETİMİ (tablo görünümü)
+# 🚢 FİLO YÖNETİMİ
 # ============================================================
 elif menu == "🚢 Filo Yönetimi":
     st.subheader("🚢 Filo Yönetimi (Tablo Görünümü)")
@@ -532,4 +518,17 @@ elif menu == "🎓 ETO Eğitim & PSC":
 
     if st.session_state.quiz_idx < len(quiz):
         q = quiz[st.session_state.quiz_idx]
-        st.markdown(f"**Soru {
+        st.markdown(f"**Soru {st.session_state.quiz_idx + 1}/{len(quiz)}:** {q['Soru']}")
+        secim = st.radio("Cevap:", q["Secenekler"], key=f"q{st.session_state.quiz_idx}")
+
+        if st.button("✅ Onayla"):
+            if secim == q["Cevap"]:
+                st.session_state.score += 1
+                st.success("Doğru!")
+            else:
+                st.error(f"Yanlış. Doğru cevap: {q['Cevap']}")
+            st.session_state.quiz_idx += 1
+            st.rerun()
+    else:
+        st.balloons()
+        st.success(f"🎉 Sınav tamamlandı!
