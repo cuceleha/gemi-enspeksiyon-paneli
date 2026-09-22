@@ -11,27 +11,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# Gece Modu (Dark Mode) / Aydınlık Mod Dinamik CSS
-if "dark_mode" not in st.session_state:
-    st.session_state.dark_mode = True
-
-# Yan Menü (Sidebar) - Gece Modu Switch
-st.sidebar.header("⚙️ Panel Ayarları")
-theme_toggle = st.sidebar.toggle("🌙 Gece Modu (Dark Mode)", value=st.session_state.dark_mode)
-
-if theme_toggle != st.session_state.dark_mode:
-    st.session_state.dark_mode = theme_toggle
-    st.rerun()
-
-if st.session_state.dark_mode:
-    st.markdown("""
-        <style>
-        .stApp { background-color: #0E1117; color: #FAFAFA; }
-        .stTabs [data-baseweb="tab-list"] { background-color: #161B22; }
-        div[data-testid="stSidebar"] { background-color: #161B22; }
-        </style>
-    """, unsafe_allow_html=True)
-
 # Başlık ve Açıklama
 st.title("⚡ TTS Ships - Gemi Elektrik Enspeksiyon & Filo Yönetim Paneli")
 st.markdown("MarineTraffic entegrasyonu, megger kayıtları, PSC kontrol listesi, yedek parça takibi ve PDF raporlama paneli.")
@@ -199,7 +178,6 @@ with tab6:
             st.download_button("📥 Excel (.xlsx) Raporu İndir", buffer.getvalue(), f"TTS_Elektrik_Raporu_{tarih}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
 
         with c_exp2:
-            # Basit PDF Oluşturma
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", 'B', 16)
