@@ -6,14 +6,14 @@ from fpdf import FPDF
 
 # Sayfa Yapılandırması
 st.set_page_config(
-    page_title="TTS Ships - Elektrik Enspeksiyon & Filo Yönetim Paneli",
+    page_title="TTS Ships - Elektrik Enspeksiyon & Satınalma Paneli",
     page_icon="⚡",
     layout="wide"
 )
 
 # Başlık ve Açıklama
-st.title("⚡ TTS Ships - Gemi Elektrik Enspeksiyon & Filo Yönetim Paneli")
-st.markdown("MarineTraffic entegrasyonu, sertifika/sürvey takibi, megger kayıtları, PSC kontrol listesi, yedek parça takibi, ETO personel yönetimi ve PDF raporlama paneli.")
+st.title("⚡ TTS Ships - Gemi Elektrik Enspeksiyon & Satınalma Paneli")
+st.markdown("MarineTraffic entegrasyonu, sertifika/sürvey takibi, elektrik satınalma & tedarik yönetimi, megger kayıtları, PSC kontrol listesi ve PDF/Excel raporlama paneli.")
 
 # TTS Ships Filo Verileri
 tts_fleet_data = [
@@ -105,9 +105,10 @@ tarih = st.sidebar.date_input("Denetim Tarihi", datetime.date.today())
 st.sidebar.divider()
 
 # ANA SEKMELER
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🌐 Canlı Takip", 
     "📜 Sertifika & Class Sürvey",
+    "🛒 Satınalma & Tedarikçi",
     "👨‍✈️ Elektrik Zabitleri (ETO)",
     "📋 Arıza Kaydı & Fotoğraf", 
     "⚡ Megger (İzolasyon)",
@@ -129,12 +130,11 @@ with tab1:
         st.metric("Gemi Tipi", secili_gemi_bilgi['Tip'])
         st.metric("Elektrik Durumu", secili_gemi_bilgi['Durum'])
 
-# TAB 2: SERTİFİKA & CLASS SÜRVEY TAKİP PANENLİ (YENİ SEKMELER)
+# TAB 2: SERTİFİKA & CLASS SÜRVEY TAKİP
 with tab2:
     st.subheader(f"📜 {gemi_adi} - Sertifika & Yasal Belge / Sürvey Takip Paneli")
     st.markdown("Class (RINA/NKK/BV/ABS), Bayrak Devleti ve Yasal Elektrik Ekipmanı Sertifikalarının Son Kullanma Tarihleri:")
 
-    # ÖRNEK SERTİFİKA VE SÜRVEY VERİLERİ
     sertifika_listesi = [
         {"Belge Adı": "Annual Electrical Class Survey", "Kategori": "Class Sürvey", "Duzenleyen": "Class / RINA", "SonTarih": "2026-10-15"},
         {"Belge Adı": "Seyir Fenerleri Tip Onay Sertifikası", "Kategori": "Ekipman Sertifikası", "Duzenleyen": "Glamox / DNV", "SonTarih": "2026-11-20"},
@@ -177,7 +177,6 @@ with tab2:
 
     df_cert = pd.DataFrame(islenmis_sertifikalar)
 
-    # METRİKLER
     c_m1, c_m2, c_m3, c_m4 = st.columns(4)
     c_m1.metric("Toplam Sertifika / Sürvey", len(df_cert))
     c_m2.metric("🔴 Kritik (Son 30 Gün)", kritik_sayisi)
@@ -186,7 +185,6 @@ with tab2:
 
     st.divider()
 
-    # YENİ SERTİFİKA EKLEME FORMU
     with st.expander("➕ Yeni Sertifika / Sürvey Kaydı Ekle"):
         col_c1, col_c2, col_c3 = st.columns(3)
         with col_c1:
@@ -203,8 +201,125 @@ with tab2:
 
     st.dataframe(df_cert, use_container_width=True)
 
-# TAB 3: ELEKTRİK ZABİTLERİ (ETO)
+# TAB 3: SATINALMA & TEDARİKÇİ PANENLİ (YENİ SEKMELER)
 with tab3:
+    st.subheader(f"🛒 {gemi_adi} - Elektrik Satınalma, Talep & Tedarik Takip Paneli")
+    st.markdown("Gemideki ETO tarafından talep edilen elektrik malzemeleri, acillik seviyeleri, tedarik yeri ve teslimat durumları:")
+
+    # ÖRNEK SATINALMA TALEP VERİLERİ
+    req_data = [
+        {
+            "Req No": "REQ-2026-081",
+            "Gemi": gemi_adi,
+            "Talep Eden": f"ETO ({secili_gemi_bilgi['ETO']})",
+            "Malzeme / Parça Adı": "DG1 Alternatör Otomatik Voltaj Regülatörü (AVR MX321)",
+            "Miktar": "1 Adet",
+            "Acillik / Risk": "🔴 Acil (Seyir Emniyeti / PSC)",
+            "Tedarik Durumu": "📦 Sipariş Edildi",
+            "Tedarik Edilecek Liman": "Tuzla Tersanesi / Türkiye",
+            "Tedarikçi Firma": "MarPower Electrical B.V.",
+            "Gemi Onayı / Teslimat": "⏳ Teslimat Bekleniyor"
+        },
+        {
+            "Req No": "REQ-2026-074",
+            "Gemi": gemi_adi,
+            "Talep Eden": f"ETO ({secili_gemi_bilgi['ETO']})",
+            "Malzeme / Parça Adı": "Seyir Fenerleri LED Ampul Seti (24V DC - Glamox)",
+            "Miktar": "10 Adet",
+            "Acillik / Risk": "🔴 Acil (SOLAS / PSC Riski)",
+            "Tedarik Durumu": "✅ Teslim Edildi",
+            "Tedarik Edilecek Liman": "Rotterdam / Hollanda",
+            "Tedarikçi Firma": "Glamox Marine Europe",
+            "Gemi Onayı / Teslimat": "✅ Gemide Onaylandı (ETO)"
+        },
+        {
+            "Req No": "REQ-2026-068",
+            "Gemi": gemi_adi,
+            "Talep Eden": f"ETO ({secili_gemi_bilgi['ETO']})",
+            "Malzeme / Parça Adı": "Fluke 1587 FC İzolasyon Multimetresi (Megger)",
+            "Miktar": "1 Set",
+            "Acillik / Risk": "🟡 Orta (Bakım & Kalibrasyon)",
+            "Tedarik Durumu": "📋 Teklif Aşamasında",
+            "Tedarik Edilecek Liman": "Singapur Limanı",
+            "Tedarikçi Firma": "Teklifler Değerlendiriliyor",
+            "Gemi Onayı / Teslimat": "⏳ Tedarik Aşamasında"
+        },
+        {
+            "Req No": "REQ-2026-052",
+            "Gemi": gemi_adi,
+            "Talep Eden": f"ETO ({secili_gemi_bilgi['ETO']})",
+            "Malzeme / Parça Adı": "24V 200Ah Jel Akü Grubu (GMDSS Telsiz İçin)",
+            "Miktar": "4 Adet",
+            "Acillik / Risk": "🟡 Orta (Süresi Yaklaşıyor)",
+            "Tedarik Durumu": "📦 Sipariş Edildi",
+            "Tedarik Edilecek Liman": "Pire Limanı / Yunanistan",
+            "Tedarikçi Firma": "Hellas Marine Batteries",
+            "Gemi Onayı / Teslimat": "⏳ Yolda / Acente İle Sevk"
+        },
+        {
+            "Req No": "REQ-2026-041",
+            "Gemi": gemi_adi,
+            "Talep Eden": f"ETO ({secili_gemi_bilgi['ETO']})",
+            "Malzeme / Parça Adı": "Kablo Rakorları (Gland) Seti & Isı Büzüşmeli Makaron",
+            "Miktar": "1 Kutu",
+            "Acillik / Risk": "🟢 Düşük (Stok Tamamlama)",
+            "Tedarik Durumu": "✅ Teslim Edildi",
+            "Tedarik Edilecek Liman": "İzmir Limanı",
+            "Tedarikçi Firma": "Ege Elektrik Denizcilik",
+            "Gemi Onayı / Teslimat": "✅ Gemide Onaylandı (ETO)"
+        }
+    ]
+
+    df_req = pd.DataFrame(req_data)
+
+    # ÖZET METRİKLER
+    p_m1, p_m2, p_m3, p_m4 = st.columns(4)
+    p_m1.metric("Toplam Malzeme Talebi", len(df_req))
+    p_m2.metric("🔴 Acil / PSC Riski", len(df_req[df_req["Acillik / Risk"].str.contains("🔴")]))
+    p_m3.metric("⏳ Tedarik Edilecek / Yolda", len(df_req[df_req["Tedarik Durumu"].str.contains("Sipariş|Teklif")]))
+    p_m4.metric("✅ Gemi Onaylı (Teslim)", len(df_req[df_req["Gemi Onayı / Teslimat"].str.contains("✅")]))
+
+    st.divider()
+
+    # YENİ MALZEME TALEBİ OLUŞTURMA FORMU
+    with st.expander("➕ Gemiden / Enspektörden Yeni Malzeme Talebi (Requisition) Ekle"):
+        col_r1, col_r2, col_r3 = st.columns(3)
+        with col_r1:
+            r_parca = st.text_input("Malzeme / Parça Adı & Kodu")
+            r_miktar = st.text_input("Miktar (Adet/Set)", value="1 Adet")
+            r_acil = st.selectbox("Acillik & Risk Seviyesi", [
+                "🔴 Acil (Seyir Emniyeti / PSC / Class Riski)",
+                "🟡 Orta (Periyodik Bakım / Süresi Yaklaşan)",
+                "🟢 Düşük (Genel Stok Tamamlama)"
+            ])
+        with col_r2:
+            r_liman = st.text_input("Tedarik Edilmesi İstenen Liman", value="Tuzla Tersanesi")
+            r_tedarikci = st.text_input("Önerilen Tedarikçi / Marka (Opsiyonel)")
+            r_durum = st.selectbox("Tedarik Durumu", ["📋 Onay Bekliyor", "📋 Teklif Aşamasında", "📦 Sipariş Edildi", "✅ Teslim Edildi"])
+        with col_r3:
+            r_onay = st.selectbox("Gemi Teslim Onayı", ["⏳ Tedarik / Teslimat Bekleniyor", "✅ Gemide Onaylandı (ETO Teslim Aldı)"])
+            st.write(" ")
+            if st.button("Talebi Sisteme Kaydet", use_container_width=True):
+                st.success(f"'{r_parca}' talebi oluşturuldu ve satınalma listesine eklendi!")
+
+    # TALEP LİSTESİ TABLOSU
+    st.dataframe(df_req, use_container_width=True)
+
+    st.divider()
+
+    # LİMAN & TEDARİKÇİ TEKLİF KARŞILAŞTIRMA SEKMESİ
+    st.subheader("💡 Liman Bazlı Tedarikçi Teklif Karşılaştırma (PO Evaluation)")
+    st.markdown("Seçili acil parçalar için tedarikçilerden alınan tekliflerin enspektör karşılaştırması:")
+
+    teklif_data = [
+        {"Tedarikçi Firma": "MarPower Electrical B.V.", "Liman / Konum": "Rotterdam", "Parça / Ürün": "AVR MX321 (Original)", "Birim Fiyat ($)": "1,250 $", "Teslim Süresi": "2 Gün", "Enspektör Onayı": "✅ Tercih Edilen"},
+        {"Tedarikçi Firma": "Singapore Marine Spares Ltd.", "Liman / Konum": "Singapur", "Parça / Ürün": "AVR MX321 (OEM)", "Birim Fiyat ($)": "890 $", "Teslim Süresi": "5 Gün", "Enspektör Onayı": "⚪ İkinci Seçenek"},
+        {"Tedarikçi Firma": "Tuzla Deniz Elektrik A.Ş.", "Liman / Konum": "Tuzla / TR", "Parça / Ürün": "AVR MX321 (Muadil)", "Birim Fiyat ($)": "650 $", "Teslim Süresi": "Aynı Gün", "Enspektör Onayı": "🟡 Stok/Stil Beklemede"}
+    ]
+    st.dataframe(pd.DataFrame(teklif_data), use_container_width=True)
+
+# TAB 4: ELEKTRİK ZABİTLERİ (ETO)
+with tab4:
     st.subheader("👨‍✈️ Şirket Elektrik Zabitleri (ETO) & Performans Değerlendirme Tablosu")
     st.write("Şirket bünyesinde gemilerde görev yapan ve yedekte (izinde) bekleyen tüm Elektrik Zabitlerinin özet durumu:")
 
@@ -287,8 +402,8 @@ with tab3:
 
     st.dataframe(df_goster, use_container_width=True)
 
-# TAB 4: ARIZA KAYDI
-with tab4:
+# TAB 5: ARIZA KAYDI
+with tab5:
     st.subheader(f"🛠️ {gemi_adi} - Elektrik Arıza Kaydı Formu")
     col1, col2 = st.columns(2)
     with col1:
@@ -321,8 +436,8 @@ with tab4:
         })
         st.success(f"{gemi_adi} için bulgu kaydı veritabanına eklendi!")
 
-# TAB 5: MEGGER TESTİ
-with tab5:
+# TAB 6: MEGGER TESTİ
+with tab6:
     st.subheader(f"⚡ {gemi_adi} - İzolasyon Direnci (Megger) Ölçümü")
     st.info("💡 Standart: 440V AC sistemler için minimum kabul edilebilir izolasyon değeri **1.0 MΩ**'dur.")
     m_col1, m_col2, m_col3 = st.columns(3)
@@ -338,8 +453,8 @@ with tab5:
         else:
             st.success("🟢 İZOLASYON SAĞLIKLI (Normal)")
 
-# TAB 6: PSC CHECKLIST
-with tab6:
+# TAB 7: PSC CHECKLIST
+with tab7:
     st.subheader(f"📝 {gemi_adi} - PSC & Class Elektrik Denetim Kontrol Listesi")
     st.write("Liman Devleti Kontrolü (PSC) öncesi onaylanması gereken kritik elektrik maddeleri:")
     
@@ -354,8 +469,8 @@ with tab6:
     st.progress(onay_sayisi / 6)
     st.write(f"**Tamamlanan Kontrol:** {onay_sayisi} / 6")
 
-# TAB 7: YEDEK PARÇA TAKİBİ
-with tab7:
+# TAB 8: YEDEK PARÇA TAKİBİ
+with tab8:
     st.subheader("📦 Kritik Elektrik Yedek Parça Stok Durumu")
     yedek_data = [
         {"Parça Adı": "Otomatik Voltaj Regülatörü (AVR)", "Ekipman": "DG1 / DG2 Alternatör", "Stok Adedi": 2, "Kritik Stok": 1, "Durum": "🟢 Yeterli"},
@@ -365,8 +480,8 @@ with tab7:
     ]
     st.dataframe(pd.DataFrame(yedek_data), use_container_width=True)
 
-# TAB 8: RAPORLAMA & PDF/EXCEL
-with tab8:
+# TAB 9: RAPORLAMA & PDF/EXCEL
+with tab9:
     st.subheader("📊 Filo Denetim Raporlama ve Dışa Aktarma")
     
     if len(st.session_state.bulgular) > 0:
