@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import datetime
 import io
-import streamlit.components.v1 as components
 
 # Sayfa Yapılandırması
 st.set_page_config(
@@ -12,8 +11,8 @@ st.set_page_config(
 )
 
 # Başlık ve Açıklama
-st.title("⚡ TTS Ships - Elektrik Enspeksiyon & Canlı Takip Paneli")
-st.markdown("Filo genelindeki elektrik arızaları, megger testleri, canlı VesselFinder konumları ve denetim raporlama paneli.")
+st.title("⚡ TTS Ships - Filo Elektrik Enspeksiyon ve Canlı Takip Paneli")
+st.markdown("MarineTraffic entegrasyonu ile gemi takibi, elektrik arıza kayıtları, megger testleri ve raporlama paneli.")
 
 # Görseldeki Resmi TTS Ships Tablosundan Tam Doğrulanmış Veriler
 tts_fleet_data = [
@@ -64,28 +63,29 @@ st.sidebar.divider()
 
 # Ana Sekmeler
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ VesselFinder Canlı Harita", 
+    "🌐 MarineTraffic Canlı Takip", 
     "📋 Enspeksiyon Bulguları & Fotoğraf", 
     "⚡ Megger (İzolasyon) Ölçüm Kaydı",
     "📊 Filo Raporu & Excel İndir"
 ])
 
-# TAB 1: VESSEL FINDER HARİTASI
+# TAB 1: MARINETRAFFIC CANLI TAKİP
 with tab1:
-    st.subheader(f"🗺️ VesselFinder Canlı Takip - {gemi_adi} (IMO: {secili_gemi_bilgi['IMO']})")
+    st.subheader(f"⚓ {gemi_adi} (IMO: {secili_gemi_bilgi['IMO']}) - MarineTraffic Canlı Konum Kartı")
     
-    vf_link = f"https://www.vesselfinder.com/vessels/details/{secili_gemi_bilgi['IMO']}"
-    st.link_button(f"🌐 {gemi_adi} VesselFinder Detay Sayfasını Aç", vf_link, type="primary")
-
-    vf_embed_html = f"""
-    <iframe 
-        width="100%" 
-        height="600" 
-        frameborder="0" 
-        src="https://www.vesselfinder.com/aismap?zoom=3&lat=20&lon=30&width=100%25&height=600&names=true&imo={secili_gemi_bilgi['IMO']}&track=true">
-    </iframe>
-    """
-    components.html(vf_embed_html, height=620)
+    col_mt1, col_mt2 = st.columns([2, 1])
+    
+    with col_mt1:
+        st.info(f"📍 **{gemi_adi}** gemisinin canlı AIS konumunu, rota, sürat ve liman varış bilgilerini MarineTraffic üzerinde canlı görüntülemek için aşağıdaki butona tıklayın.")
+        
+        # MarineTraffic Doğrudan Canlı Bağlantı Linki
+        mt_link = f"https://www.marinetraffic.com/en/ais/details/ships/imo:{secili_gemi_bilgi['IMO']}"
+        st.link_button(f"🔴 {gemi_adi} Canlı MarineTraffic Haritasını Aç", mt_link, type="primary", use_container_width=True)
+        
+    with col_mt2:
+        st.metric("Seçili Gemi IMO", secili_gemi_bilgi['IMO'])
+        st.metric("Gemi Tipi", secili_gemi_bilgi['Tip'])
+        st.metric("Elektrik Durumu", secili_gemi_bilgi['Durum'])
 
 # TAB 2: AR IZA VE BULGU KAYDI
 with tab2:
