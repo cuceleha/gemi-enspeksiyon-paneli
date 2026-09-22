@@ -24,12 +24,15 @@ st.markdown("""
 }
 .card-flex { display: flex; gap: 14px; align-items: flex-start; }
 .eto-left { flex: 0 0 130px; text-align: center; }
-.eto-placeholder {
+.eto-avatar {
     width: 120px; height: 120px; border-radius: 50%;
-    background: linear-gradient(135deg, #1e6fd9 0%, #0b3d91 100%);
-    color: white; display: flex; align-items: center; justify-content: center;
-    font-size: 42px; font-weight: 700; margin: 0 auto;
-    border: 3px solid #0b3d91;
+    background: #f1f5fb;
+    color: #1e6fd9;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 60px;
+    margin: 0 auto;
+    border: 3px solid #1e6fd9;
+    box-shadow: 0 2px 8px rgba(30,111,217,0.25);
 }
 .eto-name { font-size: 11.5px; font-weight: 700; color: #0b3d91; margin-top: 8px; line-height: 1.3; }
 .eto-role { font-size: 10px; color: #7a8699; margin-top: 2px; }
@@ -50,6 +53,53 @@ st.markdown("""
 .ship-status { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 10px; font-weight: 600; background: #e6f4ea; color: #1e7e34; margin-top: 8px; }
 .ship-status.warn { background: #fff4e0; color: #b76e00; }
 .ship-status.err  { background: #fdecea; color: #c0392b; }
+
+/* Panel kartları */
+.panel-card {
+    background: #ffffff; border: 1px solid #e3e8ef; border-radius: 12px;
+    padding: 16px 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    margin-bottom: 16px;
+}
+.panel-title {
+    font-size: 15px; font-weight: 700; color: #0b3d91;
+    margin-bottom: 12px; padding-bottom: 8px;
+    border-bottom: 2px solid #e6ecf5;
+}
+.fault-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 10px; border-radius: 8px; margin-bottom: 6px;
+    background: #f8fafc; font-size: 12.5px;
+}
+.fault-item.high { background: #fdecea; border-left: 4px solid #dc2626; }
+.fault-item.mid  { background: #fff7e6; border-left: 4px solid #d97706; }
+.fault-item.low  { background: #eaf7ee; border-left: 4px solid #16a34a; }
+.fault-badge {
+    font-size: 10.5px; padding: 2px 8px; border-radius: 10px;
+    background: #0b3d91; color: white; font-weight: 600;
+}
+.inspect-item {
+    padding: 10px 12px; border-radius: 8px; margin-bottom: 8px;
+    background: #f8fafc; border-left: 4px solid #1e6fd9; font-size: 12.5px;
+}
+.inspect-date { font-size: 10.5px; color: #7a8699; margin-bottom: 3px; }
+.inspect-title { font-weight: 700; color: #0b3d91; margin-bottom: 4px; }
+.inspect-desc { color: #333; line-height: 1.5; }
+.mat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 10px; border-bottom: 1px solid #eef2f7; font-size: 12.5px;
+}
+.mat-row:last-child { border-bottom: none; }
+.mat-name { font-weight: 600; color: #333; }
+.mat-ship { font-size: 10.5px; color: #7a8699; }
+.mat-qty {
+    background: #e6ecf5; color: #0b3d91;
+    padding: 2px 8px; border-radius: 10px;
+    font-size: 10.5px; font-weight: 700;
+}
+.mat-priority { font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-left: 6px; font-weight: 600; }
+.mat-priority.acil { background: #fdecea; color: #c0392b; }
+.mat-priority.yuksek { background: #fff4e0; color: #b76e00; }
+.mat-priority.normal { background: #e6f4ea; color: #1e7e34; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -107,13 +157,6 @@ def kontrat_bilgi(giris_str, bitis_str):
     return kalan, yuzde, cls
 
 
-def eto_initials(isim):
-    parts = isim.strip().split()
-    if len(parts) >= 2:
-        return (parts[0][0] + parts[-1][0]).upper()
-    return isim[:2].upper()
-
-
 def ship_card_html(row):
     cls = ""
     if "Arıza" in row["Durum"] or "Süresi" in row["Durum"]:
@@ -134,7 +177,7 @@ def ship_card_html(row):
 
     h = '<div class="ship-card"><div class="card-flex">'
     h += '<div class="eto-left">'
-    h += '<div class="eto-placeholder">' + eto_initials(row["ETO"]) + '</div>'
+    h += '<div class="eto-avatar">👤</div>'
     h += '<div class="eto-name">👨‍✈️ ' + row["ETO"] + '</div>'
     h += '<div class="eto-role">Baş Elektrik Zabiti (ETO)</div>'
     h += '<div class="contract-box">'
@@ -155,13 +198,129 @@ def ship_card_html(row):
     return h
 
 
+# ---------- Yeni Paneller için Örnek Veriler ----------
+arizalar = [
+    {"Gemi": "M/V BOSPHORUS", "Ekipman": "Ana Jeneratör No:2 - Alternatör", "Aciliyet": "Yüksek", "Tespit": "2026-09-18", "Aciklama": "Sargı izolasyon direnci düşük (0.6 MΩ), megger testi tekrar edilecek."},
+    {"Gemi": "M/V MED STAR", "Ekipman": "Bow Thruster Kumanda Panosu", "Aciliyet": "Orta", "Tespit": "2026-09-15", "Aciklama": "Kumanda kartı arızalı, yedek kart bekleniyor."},
+    {"Gemi": "M/T MOON STAR", "Ekipman": "Acil Aydınlatma Devresi", "Aciliyet": "Yüksek", "Tespit": "2026-09-20", "Aciklama": "Köprüüstü acil aydınlatma devresinde toprak kaçağı tespit edildi."},
+    {"Gemi": "M/V A380", "Ekipman": "Soğutma Kompresörü Motoru", "Aciliyet": "Düşük", "Tespit": "2026-09-10", "Aciklama": "Rulman sesi artmış, izleme listesinde."},
+    {"Gemi": "M/V ATLANTIC STAR", "Ekipman": "MSB Bus-Bar Bağlantısı", "Aciliyet": "Yüksek", "Tespit": "2026-09-12", "Aciklama": "Termal kamera ile sıcak nokta tespit edildi (85°C)."},
+    {"Gemi": "M/V SAPHIRA", "Ekipman": "Yangın Alarm Panosu", "Aciliyet": "Orta", "Tespit": "2026-09-08", "Aciklama": "Zone 3 dedektörü arızalı, değişim gerekiyor."},
+]
+
+denetlemeler = [
+    {"Tarih": "2026-09-20", "Gemi": "M/T MOON STAR", "Baslik": "Aylık Elektrik Denetimi", "Aciklama": "Ana şalter panosu, acil jeneratör ve MSB kontrol edildi. Acil aydınlatma devresinde toprak kaçağı bulundu. Aksiyon açıldı.", "Denetci": "Ahmet YILMAZ"},
+    {"Tarih": "2026-09-18", "Gemi": "M/V BOSPHORUS", "Baslik": "Yıllık Class Survey", "Aciklama": "Alternatör No:2 izolasyon testleri tamamlandı. Class surveyör raporu bekleniyor.", "Denetci": "Mehmet DEMİR"},
+    {"Tarih": "2026-09-15", "Gemi": "M/V MED STAR", "Baslik": "PSC Öncesi Öz Denetim", "Aciklama": "Steering gear, emergency generator ve yangın pompası elektrik devreleri kontrol edildi. Bow thruster kumanda kartı arızası tespit edildi.", "Denetci": "Ali KAYA"},
+    {"Tarih": "2026-09-12", "Gemi": "M/V ATLANTIC STAR", "Baslik": "Termal Kamera Taraması", "Aciklama": "MSB ve MCC panolarında termal tarama yapıldı. Bus-bar bağlantısında sıcak nokta tespit edildi.", "Denetci": "Kemal ARSLAN"},
+    {"Tarih": "2026-09-08", "Gemi": "M/V SAPHIRA", "Baslik": "Yangın Alarm Testi", "Aciklama": "Tüm zone dedektörleri test edildi. Zone 3 dedektörü cevap vermedi.", "Denetci": "Murat AVCİ"},
+    {"Tarih": "2026-09-05", "Gemi": "M/V A380", "Baslik": "Rutin Elektrik Kontrolü", "Aciklama": "Aydınlatma, jeneratör ve ana pano kontrol edildi. Soğutma kompresörü rulman sesi not edildi.", "Denetci": "Hasan ÇELİK"},
+]
+
+malzeme_ihtiyac = [
+    {"Malzeme": "Bow Thruster Kumanda Kartı", "Gemi": "M/V MED STAR", "Miktar": 1, "Oncelik": "Acil", "Tedarikci": "Kongsberg", "Talep": "2026-09-16"},
+    {"Malzeme": "Termal Kamera Kartuşu", "Gemi": "M/V ATLANTIC STAR", "Miktar": 1, "Oncelik": "Yüksek", "Tedarikci": "FLIR", "Talep": "2026-09-14"},
+    {"Malzeme": "Yangın Dedektörü (Zone 3)", "Gemi": "M/V SAPHIRA", "Miktar": 2, "Oncelik": "Normal", "Tedarikci": "Consilium", "Talep": "2026-09-10"},
+    {"Malzeme": "İzolasyon Bandı (Yüksek Sıcaklık)", "Gemi": "Tüm Filo", "Miktar": 20, "Oncelik": "Normal", "Tedarikci": "3M", "Talep": "2026-09-09"},
+    {"Malzeme": "Acil Aydınlatma Balastı", "Gemi": "M/T MOON STAR", "Miktar": 4, "Oncelik": "Acil", "Tedarikci": "Philips", "Talep": "2026-09-20"},
+    {"Malzeme": "Rulman (Kompresör Motoru)", "Gemi": "M/V A380", "Miktar": 2, "Oncelik": "Yüksek", "Tedarikci": "SKF", "Talep": "2026-09-11"},
+    {"Malzeme": "Sigorta Seti (MSB Yedek)", "Gemi": "M/V MED STAR", "Miktar": 1, "Oncelik": "Normal", "Tedarikci": "ABB", "Talep": "2026-09-07"},
+    {"Malzeme": "Kontaktör (3TF52)", "Gemi": "M/V CHIEF SEATTLE", "Miktar": 3, "Oncelik": "Yüksek", "Tedarikci": "Siemens", "Talep": "2026-09-13"},
+]
+
+
+def render_ariza_panosu():
+    st.markdown('<div class="panel-card"><div class="panel-title">🔧 Gemilerde Bulunan Toplam Arızalar</div>', unsafe_allow_html=True)
+
+    yuksek = sum(1 for a in arizalar if a["Aciliyet"] == "Yüksek")
+    orta = sum(1 for a in arizalar if a["Aciliyet"] == "Orta")
+    dusuk = sum(1 for a in arizalar if a["Aciliyet"] == "Düşük")
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Toplam Arıza", len(arizalar))
+    m2.metric("🔴 Yüksek", yuksek)
+    m3.metric("🟡 Orta", orta)
+    m4.metric("🟢 Düşük", dusuk)
+
+    st.markdown("---")
+
+    for a in arizalar:
+        if a["Aciliyet"] == "Yüksek":
+            cls = "high"
+        elif a["Aciliyet"] == "Orta":
+            cls = "mid"
+        else:
+            cls = "low"
+
+        line = '<div class="fault-item ' + cls + '">'
+        line += '<div><b>' + a["Gemi"] + '</b> · ' + a["Ekipman"]
+        line += '<div style="font-size:11px;color:#5a6b82;margin-top:3px;">' + a["Aciklama"] + '</div>'
+        line += '<div style="font-size:10px;color:#7a8699;margin-top:3px;">Tespit: ' + a["Tespit"] + '</div></div>'
+        line += '<span class="fault-badge">' + a["Aciliyet"] + '</span>'
+        line += '</div>'
+        st.markdown(line, unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+def render_denetlemeler():
+    st.markdown('<div class="panel-card"><div class="panel-title">📋 En Son Yapılan Denetlemeler ve Tespitler</div>', unsafe_allow_html=True)
+
+    for d in denetlemeler:
+        line = '<div class="inspect-item">'
+        line += '<div class="inspect-date">📅 ' + d["Tarih"] + ' · Denetçi: ' + d["Denetci"] + '</div>'
+        line += '<div class="inspect-title">🚢 ' + d["Gemi"] + ' — ' + d["Baslik"] + '</div>'
+        line += '<div class="inspect-desc">' + d["Aciklama"] + '</div>'
+        line += '</div>'
+        st.markdown(line, unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+def render_malzeme():
+    st.markdown('<div class="panel-card"><div class="panel-title">📦 Malzeme İhtiyaç Listesi</div>', unsafe_allow_html=True)
+
+    acil = sum(1 for m in malzeme_ihtiyac if m["Oncelik"] == "Acil")
+    yuksek = sum(1 for m in malzeme_ihtiyac if m["Oncelik"] == "Yüksek")
+    normal = sum(1 for m in malzeme_ihtiyac if m["Oncelik"] == "Normal")
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Toplam Kalem", len(malzeme_ihtiyac))
+    m2.metric("🔴 Acil", acil)
+    m3.metric("🟡 Yüksek", yuksek)
+    m4.metric("🟢 Normal", normal)
+
+    st.markdown("---")
+
+    for m in malzeme_ihtiyac:
+        cls = m["Oncelik"].lower()
+        if cls == "acil":
+            cls = "acil"
+        elif cls == "yüksek":
+            cls = "yuksek"
+        else:
+            cls = "normal"
+
+        line = '<div class="mat-row">'
+        line += '<div><div class="mat-name">' + m["Malzeme"] + '</div>'
+        line += '<div class="mat-ship">' + m["Gemi"] + ' · ' + m["Tedarikci"] + ' · Talep: ' + m["Talep"] + '</div></div>'
+        line += '<div><span class="mat-qty">' + str(m["Miktar"]) + ' adet</span>'
+        line += '<span class="mat-priority ' + cls + '">' + m["Oncelik"] + '</span></div>'
+        line += '</div>'
+        st.markdown(line, unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ---------- Sidebar ----------
 menu = st.sidebar.radio(
     "📌 Navigasyon",
     ["🏠 Dashboard", "🚢 Filo Yönetimi", "📜 Sertifika & Survey", "🛒 Satınalma",
      "📚 Teknik Dokümanlar", "🎓 ETO Eğitim & PSC", "⚡ Megger Kayıtları", "📄 Raporlama"],
 )
 st.sidebar.markdown("---")
-st.sidebar.caption("© 2026 TTS Ships · v3.3")
+st.sidebar.caption("© 2026 TTS Ships · v3.4")
+
 
 if menu == "🏠 Dashboard":
     st.subheader("📊 Filo Genel Durum")
@@ -172,27 +331,9 @@ if menu == "🏠 Dashboard":
     c4.metric("Arıza", (fleet_df["Durum"] == "🔴 Arıza").sum())
 
     st.markdown("---")
-    st.subheader("🚢 Filo Kartları · ETO & Kontrat Takibi")
 
-    f1, f2, f3 = st.columns([1, 1, 1])
-    with f1:
-        tip_sec = st.multiselect("Tip Filtre", sorted(fleet_df["Tip"].unique()), default=sorted(fleet_df["Tip"].unique()))
-    with f2:
-        bayrak_sec = st.multiselect("Bayrak Filtre", sorted(fleet_df["Bayrak"].unique()), default=sorted(fleet_df["Bayrak"].unique()))
-    with f3:
-        arama = st.text_input("🔍 Gemi / IMO / ETO Ara")
-
-    filtreli = fleet_df[fleet_df["Tip"].isin(tip_sec) & fleet_df["Bayrak"].isin(bayrak_sec)]
-    if arama:
-        filtreli = filtreli[
-            filtreli["Gemi"].str.contains(arama, case=False, na=False) |
-            filtreli["IMO"].str.contains(arama, case=False, na=False) |
-            filtreli["ETO"].str.contains(arama, case=False, na=False)
-        ]
-
-    st.caption("Toplam " + str(len(filtreli)) + " gemi gösteriliyor.")
-
-    rows = filtreli.to_dict("records")
+    # Gemi kartları (filtresiz)
+    rows = fleet_df.to_dict("records")
     for i in range(0, len(rows), 3):
         cols = st.columns(3)
         for j, col in enumerate(cols):
@@ -201,165 +342,26 @@ if menu == "🏠 Dashboard":
                     st.markdown(ship_card_html(rows[i + j]), unsafe_allow_html=True)
 
     st.markdown("---")
-    st.subheader("📈 Gemi Tipi Dağılımı")
-    st.bar_chart(fleet_df["Tip"].value_counts())
-    st.subheader("🌍 Bayrak Dağılımı")
-    st.bar_chart(fleet_df["Bayrak"].value_counts())
+
+    # Yeni 3 panel
+    col_a, col_b = st.columns([1, 1])
+    with col_a:
+        render_ariza_panosu()
+    with col_b:
+        render_malzeme()
+
+    st.markdown("---")
+    render_denetlemeler()
+
 
 elif menu == "🚢 Filo Yönetimi":
     st.subheader("🚢 Filo Yönetimi (Tablo Görünümü)")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        ft = st.multiselect("Gemi Tipi", fleet_df["Tip"].unique(), default=list(fleet_df["Tip"].unique()))
-    with col2:
-        fb = st.multiselect("Bayrak", fleet_df["Bayrak"].unique(), default=list(fleet_df["Bayrak"].unique()))
-    with col3:
-        s = st.text_input("🔍 Gemi / IMO / ETO Ara", key="fs")
-    filtered = fleet_df[fleet_df["Tip"].isin(ft) & fleet_df["Bayrak"].isin(fb)]
-    if s:
-        filtered = filtered[
-            filtered["Gemi"].str.contains(s, case=False, na=False) |
-            filtered["IMO"].str.contains(s, case=False, na=False) |
-            filtered["ETO"].str.contains(s, case=False, na=False)
-        ]
-    st.dataframe(filtered, use_container_width=True)
+    st.dataframe(fleet_df, use_container_width=True)
+
 
 elif menu == "📜 Sertifika & Survey":
     st.subheader("📜 Sertifika & Survey Takibi")
     today = datetime.date.today()
     cert_data = [
         {"Gemi": "M/V MED STAR", "Sertifika": "Safety Equipment", "Bitiş": today + datetime.timedelta(days=15), "Durum": "🟡 Yakında"},
-        {"Gemi": "M/V MED STAR", "Sertifika": "Load Line", "Bitiş": today + datetime.timedelta(days=180), "Durum": "🟢 Geçerli"},
-        {"Gemi": "M/T MOON STAR", "Sertifika": "IOPP", "Bitiş": today + datetime.timedelta(days=5), "Durum": "🔴 Kritik"},
-        {"Gemi": "M/T MOON STAR", "Sertifika": "Safety Construction", "Bitiş": today + datetime.timedelta(days=240), "Durum": "🟢 Geçerli"},
-        {"Gemi": "M/T KUZEY STAR II", "Sertifika": "ISSC", "Bitiş": today + datetime.timedelta(days=90), "Durum": "🟢 Geçerli"},
-        {"Gemi": "M/V ATLANTIC STAR", "Sertifika": "IAPP", "Bitiş": today - datetime.timedelta(days=3), "Durum": "🔴 Süresi Geçti"},
-        {"Gemi": "M/V PACIFIC STAR", "Sertifika": "Class Certificate", "Bitiş": today + datetime.timedelta(days=45), "Durum": "🟡 Yakında"},
-        {"Gemi": "M/V VENUS STAR", "Sertifika": "Safety Equipment", "Bitiş": today + datetime.timedelta(days=200), "Durum": "🟢 Geçerli"},
-        {"Gemi": "M/V MERCUR STAR", "Sertifika": "Load Line", "Bitiş": today + datetime.timedelta(days=12), "Durum": "🟡 Yakında"},
-        {"Gemi": "M/V SAPHIRA", "Sertifika": "IOPP", "Bitiş": today + datetime.timedelta(days=320), "Durum": "🟢 Geçerli"},
-    ]
-    cert_df = pd.DataFrame(cert_data)
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Toplam Sertifika", len(cert_df))
-    c2.metric("Kritik", ((cert_df["Durum"] == "🔴 Kritik") | (cert_df["Durum"] == "🔴 Süresi Geçti")).sum())
-    c3.metric("Yakında", (cert_df["Durum"] == "🟡 Yakında").sum())
-    st.dataframe(cert_df, use_container_width=True)
-
-elif menu == "🛒 Satınalma":
-    st.subheader("🛒 Satınalma Talepleri")
-    with st.form("talep_form"):
-        col1, col2 = st.columns(2)
-        with col1:
-            gemi = st.selectbox("Gemi", fleet_df["Gemi"].tolist())
-            malzeme = st.text_input("Malzeme / Ekipman")
-            miktar = st.number_input("Miktar", min_value=1, value=1)
-        with col2:
-            oncelik = st.selectbox("Öncelik", ["Normal", "Yüksek", "Acil"])
-            tedarikci = st.text_input("Tedarikçi (opsiyonel)")
-            notlar = st.text_area("Notlar")
-        if st.form_submit_button("📨 Talep Oluştur") and malzeme:
-            st.session_state.purchases.append({
-                "Tarih": datetime.date.today(), "Gemi": gemi, "Malzeme": malzeme,
-                "Miktar": miktar, "Öncelik": oncelik, "Tedarikçi": tedarikci,
-                "Not": notlar, "Durum": "🕓 Bekliyor"
-            })
-            st.success("✅ Talep oluşturuldu.")
-    if st.session_state.purchases:
-        st.markdown("### 📋 Talep Listesi")
-        st.dataframe(pd.DataFrame(st.session_state.purchases), use_container_width=True)
-    else:
-        st.info("Henüz talep oluşturulmadı.")
-
-elif menu == "📚 Teknik Dokümanlar":
-    st.subheader("📚 Teknik Doküman Kütüphanesi")
-    docs = pd.DataFrame([
-        {"Kategori": "Manuel", "Doküman": "Ana Şalter Panosu Manual", "Gemi": "M/V MED STAR", "Rev": "R3"},
-        {"Kategori": "Şema", "Doküman": "Tek Hat Şeması (SLD)", "Gemi": "M/V MED STAR", "Rev": "R5"},
-        {"Kategori": "Manuel", "Doküman": "Jeneratör Kontrol Panosu Manual", "Gemi": "M/T MOON STAR", "Rev": "R2"},
-        {"Kategori": "Şema", "Doküman": "Aydınlatma Şeması", "Gemi": "M/V ATLANTIC STAR", "Rev": "R1"},
-        {"Kategori": "Test", "Doküman": "Megger Test Prosedürü", "Gemi": "Tüm Filo", "Rev": "R4"},
-        {"Kategori": "Class", "Doküman": "Class Rules - Electrical", "Gemi": "Tüm Filo", "Rev": "2025"},
-    ])
-    st.dataframe(docs, use_container_width=True)
-
-elif menu == "🎓 ETO Eğitim & PSC":
-    st.subheader("🎓 ETO Eğitim & PSC Simülasyonu")
-    quiz = [
-        {"Soru": "AC devrede Insulation Resistance minimum kac MOhm olmalidir?",
-         "Secenekler": ["0.1 MOhm", "0.5 MOhm", "1 MOhm", "5 MOhm"], "Cevap": "1 MOhm"},
-        {"Soru": "Megaohmmetre testinde kullanilan gerilim hangisidir?",
-         "Secenekler": ["12 V DC", "110 V AC", "500 V DC", "380 V AC"], "Cevap": "500 V DC"},
-        {"Soru": "PSC'de 30 saniye kurali hangi konuyla ilgilidir?",
-         "Secenekler": ["Emergency Generator", "Steering Gear", "Fire Pump", "Bilge Pump"], "Cevap": "Steering Gear"},
-        {"Soru": "Emergency Switchboard hangi besleme kaynagini kullanir?",
-         "Secenekler": ["Main Switchboard", "Emergency Generator", "Shore Power", "Bus Tie"], "Cevap": "Emergency Generator"},
-        {"Soru": "Motor overload koruma cihazi hangisidir?",
-         "Secenekler": ["MCB", "RCD", "Thermal Overload Relay", "Fuse"], "Cevap": "Thermal Overload Relay"},
-    ]
-    if "quiz_idx" not in st.session_state:
-        st.session_state.quiz_idx = 0
-        st.session_state.score = 0
-    if st.session_state.quiz_idx < len(quiz):
-        q = quiz[st.session_state.quiz_idx]
-        st.markdown("**Soru " + str(st.session_state.quiz_idx + 1) + "/" + str(len(quiz)) + ":** " + q["Soru"])
-        secim = st.radio("Cevap:", q["Secenekler"], key="q" + str(st.session_state.quiz_idx))
-        if st.button("✅ Onayla"):
-            if secim == q["Cevap"]:
-                st.session_state.score += 1
-                st.success("Doğru!")
-            else:
-                st.error("Yanlış. Doğru cevap: " + q["Cevap"])
-            st.session_state.quiz_idx += 1
-            st.rerun()
-    else:
-        st.balloons()
-        st.success("🎉 Sinav tamamlandi! Skor: " + str(st.session_state.score) + "/" + str(len(quiz)))
-        if st.button("🔄 Yeniden Başla"):
-            st.session_state.quiz_idx = 0
-            st.session_state.score = 0
-            st.rerun()
-
-elif menu == "⚡ Megger Kayıtları":
-    st.subheader("⚡ Megger / Insulation Resistance Kayitlari")
-    with st.form("megger_form"):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            gemi = st.selectbox("Gemi", fleet_df["Gemi"].tolist(), key="mg")
-            devre = st.text_input("Devre / Ekipman")
-        with col2:
-            test_v = st.selectbox("Test Gerilimi", ["500 V DC", "1000 V DC", "2500 V DC"])
-            ir_deger = st.number_input("IR Degeri (MOhm)", min_value=0.0, value=100.0, step=0.1)
-        with col3:
-            test_tarih = st.date_input("Test Tarihi", datetime.date.today())
-            sonuc = st.selectbox("Sonuc", ["✅ Uygun", "⚠️ İzle", "❌ Uygun Değil"])
-        if st.form_submit_button("💾 Kaydet") and devre:
-            st.session_state.megger_records.append({
-                "Tarih": test_tarih, "Gemi": gemi, "Devre": devre,
-                "Test V": test_v, "IR (MOhm)": ir_deger, "Sonuc": sonuc
-            })
-            st.success("✅ Kayit eklendi.")
-    if st.session_state.megger_records:
-        st.dataframe(pd.DataFrame(st.session_state.megger_records), use_container_width=True)
-    else:
-        st.info("Henuz megger kaydi yok.")
-
-elif menu == "📄 Raporlama":
-    st.subheader("📄 Excel Raporlama")
-    rapor_tipi = st.selectbox("Rapor Tipi", ["Filo Listesi", "Satınalma", "Megger Kayıtları"])
-    if rapor_tipi == "Filo Listesi":
-        df_rapor = fleet_df
-    elif rapor_tipi == "Satınalma":
-        df_rapor = pd.DataFrame(st.session_state.purchases) if st.session_state.purchases else pd.DataFrame([{"Not": "Kayit yok"}])
-    else:
-        df_rapor = pd.DataFrame(st.session_state.megger_records) if st.session_state.megger_records else pd.DataFrame([{"Not": "Kayit yok"}])
-    st.dataframe(df_rapor, use_container_width=True)
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-        df_rapor.to_excel(writer, index=False, sheet_name="Rapor")
-    st.download_button(
-        "⬇️ Excel İndir",
-        data=buffer.getvalue(),
-        file_name="tts_ships_rapor.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+        {"Gemi": "M/V MED STAR", "Sertifika": "Load Line", "Bitiş": today +
