@@ -149,7 +149,7 @@ def init_db():
         miktar INTEGER, oncelik TEXT, tedarikci TEXT, talep TEXT
     )""")
 
-    cur.execute("""CREATE TABLE IF NOT EXISTS purchases(
+cur.execute("""CREATE TABLE IF NOT EXISTS purchases(
         id INTEGER PRIMARY KEY AUTOINCREMENT, tarih TEXT, gemi TEXT,
         malzeme TEXT, miktar INTEGER, oncelik TEXT, tedarikci TEXT,
         notlar TEXT, durum TEXT DEFAULT '🕓 Bekliyor'
@@ -165,23 +165,23 @@ def init_db():
     # İlk çalıştırmada seed (örnek) veriyi yükle - sadece tablo boşsa
     cur.execute("SELECT COUNT(*) FROM ships")
     if cur.fetchone()[0] == 0:
-    seed_ships = [
-    ("M/V MED STAR", "9337028", "Container", "27254", "23633", "Panama", "2004", "191,10 m", "Ahmet YILMAZ", "2025-06-15", "2026-06-15"),
-    ("M/T MOON STAR", "8667823", "Tanker", "68687", "28640", "Liberia", "2011", "183 m", "Mehmet DEMİR", "2025-11-01", "2026-11-01"),
-    ("M/T KUZEY STAR II", "9496175", "Tanker", "8107", "4031", "Malta", "2020", "106,10 m", "Ali KAYA", "2026-01-20", "2027-01-20"),
-    ("M/V ARRO", "9310915", "Ro-Ro Cargo", "1500", "1266", "Liberia", "2003", "75 m", "Hasan ÇELİK", "2025-09-05", "2026-09-05"),
-    ("M/V AKBABA", "9151473", "Ro-Ro Cargo", "1500", "281", "Liberia", "2004", "75 m", "Emre ŞAHİN", "2025-12-01", "2026-09-01"),
-    ("M/V ALEXANDRIA I", "8903540", "Bulk Carrier", "8000", "4049", "Panama", "1991", "135,40 m", "Serkan AYDIN", "2025-07-12", "2026-07-12"),
-    ("M/V ALENA", "8667772", "Bulk Carrier", "6068", "4958", "Panama", "1981", "100,45 m", "Burak ÖZTÜRK", "2025-08-20", "2026-08-20"),
-    ("M/V ATLANTIC STAR", "9473327", "Bulk Carrier", "75000.58", "41074", "Liberia", "2011", "225 m", "Kemal ARSLAN", "2026-02-10", "2027-02-10"),
-    ("M/V PACIFIC STAR", "9470867", "Bulk Carrier", "39128", "41718", "Liberia", "2013", "224,50 m", "Onur YILDIZ", "2025-10-01", "2026-04-01"),
-    ("M/V CHIEF SEATTLE", "8270761", "Bulk Carrier", "50429", "30074", "Panama", "2005", "106.83 m", "Volkan KOÇ", "2025-05-18", "2026-05-18"),
-    ("M/V VENUS STAR", "9609134", "Bulk Carrier", "80688", "44025", "Liberia", "2011", "229 m", "Cem POLAT", "2025-03-01", "2027-03-01"),
-    ("M/V MERCUR STAR", "9800287", "Bulk Carrier", "75920", "43501", "Malta", "2016", "229 m", "Barış TAŞ", "2025-11-15", "2026-06-15"),
-    ("M/V DENIZ STAR", "1077472", "General Cargo", "8300", "8844", "Liberia", "2008", "142 m", "Tolga ERDOĞAN", "2026-01-01", "2026-10-03"),
-    ("M/V BLACK SEA STAR", "9740171", "General Cargo", "8330", "6752", "Liberia", "2008", "142 m", "Yusuf KURT", "2026-02-20", "2026-11-20"),
-    ("M/V SAPHIRA", "7824405", "Live Stock", "12600", "36668", "Antigua-Barbuda", "1995", "105.02 m", "Murat AVCI", "2025-04-10", "2026-04-10")
-]
+        seed_ships = [
+            ("M/V MED STAR", "9337028", "Container", "27254", "23633", "Panama", "2004", "191,10 m", "Ahmet YILMAZ", "2025-06-15", "2026-06-15"),
+            ("M/T MOON STAR", "8667823", "Tanker", "68687", "28640", "Liberia", "2011", "183 m", "Mehmet DEMİR", "2025-11-01", "2026-11-01"),
+            ("M/T KUZEY STAR II", "9496175", "Tanker", "8107", "4031", "Malta", "2020", "106,10 m", "Ali KAYA", "2026-01-20", "2027-01-20"),
+            ("M/V ARRO", "9310915", "Ro-Ro Cargo", "1500", "1266", "Liberia", "2003", "75 m", "Hasan ÇELİK", "2025-09-05", "2026-09-05"),
+            ("M/V AKBABA", "9151473", "Ro-Ro Cargo", "1500", "281", "Liberia", "2004", "75 m", "Emre ŞAHİN", "2025-12-01", "2026-09-01"),
+            ("M/V ALEXANDRIA I", "8903540", "Bulk Carrier", "8000", "4049", "Panama", "1991", "135,40 m", "Serkan AYDIN", "2025-07-12", "2026-07-12"),
+            ("M/V ALENA", "8667772", "Bulk Carrier", "6068", "4958", "Panama", "1981", "100,45 m", "Burak ÖZTÜRK", "2025-08-20", "2026-08-20"),
+            ("M/V ATLANTIC STAR", "9473327", "Bulk Carrier", "75000.58", "41074", "Liberia", "2011", "225 m", "Kemal ARSLAN", "2026-02-10", "2027-02-10"),
+            ("M/V PACIFIC STAR", "9470867", "Bulk Carrier", "39128", "41718", "Liberia", "2013", "224,50 m", "Onur YILDIZ", "2025-10-01", "2026-04-01"),
+            ("M/V CHIEF SEATTLE", "8270761", "Bulk Carrier", "50429", "30074", "Panama", "2005", "106.83 m", "Volkan KOÇ", "2025-05-18", "2026-05-18"),
+            ("M/V VENUS STAR", "9609134", "Bulk Carrier", "80688", "44025", "Liberia", "2011", "229 m", "Cem POLAT", "2025-03-01", "2027-03-01"),
+            ("M/V MERCUR STAR", "9800287", "Bulk Carrier", "75920", "43501", "Malta", "2016", "229 m", "Barış TAŞ", "2025-11-15", "2026-06-15"),
+            ("M/V DENIZ STAR", "1077472", "General Cargo", "8300", "8844", "Liberia", "2008", "142 m", "Tolga ERDOĞAN", "2026-01-01", "2026-10-03"),
+            ("M/V BLACK SEA STAR", "9740171", "General Cargo", "8330", "6752", "Liberia", "2008", "142 m", "Yusuf KURT", "2026-02-20", "2026-11-20"),
+            ("M/V SAPHIRA", "7824405", "Live Stock", "12600", "36668", "Antigua-Barbuda", "1995", "105.02 m", "Murat AVCI", "2025-04-10", "2026-04-10")
+        ]
         cur.executemany("INSERT INTO ships VALUES (?,?,?,?,?,?,?,?,?,?,?)", seed_ships)
 
         seed_faults = [
@@ -247,7 +247,13 @@ def migrate_db():
         "downtime_saat": "REAL DEFAULT 0",
         "mudahale_eden": "TEXT DEFAULT ''",
         "mudahale_departman": "TEXT DEFAULT ''",
-        "kapanis_tarihi": "TEXT DEFAULT ''",
+        "kapanis_tarihi": "TEXT DEFAULT ''"
+    }
+    for col, col_type in new_cols.items():
+        if col not in existing_cols:
+            cur.execute(f"ALTER TABLE faults ADD COLUMN {col} {col_type}")
+    conn.commit()
+    conn.close()
     }
     for col, coltype in new_cols.items():
         if col not in existing_cols:
