@@ -4,6 +4,7 @@ import datetime
 import io
 import os
 import sqlite3
+import base64
 
 st.set_page_config(page_title="TTS Ships Panel", page_icon="⚡", layout="wide")
 
@@ -28,6 +29,8 @@ st.markdown("""
 .contract-remaining.warn{color:#d97706}
 .contract-remaining.err{color:#b91c1c}
 .ship-right{flex:1;min-width:0}
+.ship-photo{width:100%;height:110px;object-fit:cover;border-radius:8px;margin-bottom:8px;display:block;background:#eef2f7}
+.ship-photo-placeholder{width:100%;height:110px;border-radius:8px;margin-bottom:8px;background:linear-gradient(135deg,#eef2f7,#e3e8ef);display:flex;align-items:center;justify-content:center;font-size:40px;color:#b7c2d0}
 .ship-name{font-weight:700;font-size:15px;color:#0b3d91;margin-bottom:3px}
 .ship-imo{font-size:11px;color:#7a8699;margin-bottom:8px}
 .ship-info{font-size:11.5px;color:#333;line-height:1.55}
@@ -69,6 +72,11 @@ st.markdown("""
 # VERİTABANI (SQLite) - Uygulama kapansa/yenilense bile veriler kalıcıdır
 # ------------------------------------------------------------------
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tts_ships.db")
+
+# Gemi fotoğrafları için klasör: app.py ile aynı dizinde "ship_images" klasörü oluşturup
+# içine <IMO_NUMARASI>.jpg / .jpeg / .png / .webp formatında dosya eklemen yeterli.
+# Örn: ship_images/9337028.jpg  -> M/V MED STAR (IMO 9337028)
+IMAGES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ship_images")
 
 
 def get_conn():
@@ -119,6 +127,13 @@ def init_db():
 
     conn.commit()
 
+    # Bakım temizliği: M/V BOSPHORUS filoda yer almıyor, önceki sürümde yanlışlıkla
+    # eklenmişti. Zaten mevcut olmayan kayıtlar için DELETE no-op olduğundan
+    # bu blok her başlatmada güvenle çalışır (var olan DB'leri de otomatik düzeltir).
+    for tbl in ("ships", "faults", "inspections", "materials", "purchases", "megger", "certificates"):
+        cur.execute("DELETE FROM " + tbl + " WHERE gemi='M/V BOSPHORUS'")
+    conn.commit()
+
     # İlk çalıştırmada seed (örnek) veriyi yükle - sadece tablo boşsa
     cur.execute("SELECT COUNT(*) FROM ships")
     if cur.fetchone()[0] == 0:
@@ -138,13 +153,10 @@ def init_db():
             ("M/V DENIZ STAR", "1071472", "General Cargo", "8300", "6641", "Liberia", "2025", "142 m", "Tolga ERDOĞAN", "2026-01-05", "2026-10-05"),
             ("M/V BLACKSEA STAR", "1114901", "General Cargo", "8330", "6732", "Liberia", "2025", "142 m", "Yusuf KURT", "2026-02-20", "2026-11-20"),
             ("M/V SAPHIRA", "7924425", "Live Stock", "12900", "38988", "Antigua-Barbuda", "1995", "185,82 m", "Murat AVCİ", "2025-04-10", "2026-04-10"),
-            # Not: orijinal arıza listesinde geçen M/V BOSPHORUS filo tablosunda yoktu, tutarlılık için ekleniyor
-            ("M/V BOSPHORUS", "9000001", "Tanker", "45000", "27000", "Malta", "2010", "180 m", "Deniz KARA", "2025-09-01", "2026-09-01"),
         ]
         cur.executemany("INSERT INTO ships VALUES (?,?,?,?,?,?,?,?,?,?,?)", seed_ships)
 
         seed_faults = [
-            ("M/V BOSPHORUS", "Ana Jeneratör No:2", "Yüksek", "2026-09-18", "Sargı izolasyon direnci düşük (0.6 MOhm).", "Açık"),
             ("M/V MED STAR", "Bow Thruster Kumanda Panosu", "Orta", "2026-09-15", "Kumanda kartı arızalı.", "Açık"),
             ("M/T MOON STAR", "Acil Aydınlatma Devresi", "Yüksek", "2026-09-20", "Toprak kaçağı tespit edildi.", "Açık"),
             ("M/V A380", "Soğutma Kompresörü Motoru", "Düşük", "2026-09-10", "Rulman sesi artmış.", "Açık"),
@@ -155,7 +167,6 @@ def init_db():
 
         seed_inspections = [
             ("2026-09-20", "M/T MOON STAR", "Aylık Elektrik Denetimi", "MSB, acil jeneratör kontrol edildi. Acil aydınlatmada toprak kaçağı bulundu.", "Ahmet YILMAZ"),
-            ("2026-09-18", "M/V BOSPHORUS", "Yıllık Class Survey", "Alternatör No:2 izolasyon testleri tamamlandı.", "Mehmet DEMİR"),
             ("2026-09-15", "M/V MED STAR", "PSC Öncesi Öz Denetim", "Steering gear, emergency generator kontrol edildi. Bow thruster kartı arızalı.", "Ali KAYA"),
             ("2026-09-12", "M/V ATLANTIC STAR", "Termal Kamera Taraması", "Bus-bar bağlantısında sıcak nokta tespit edildi.", "Kemal ARSLAN"),
             ("2026-09-08", "M/V SAPHIRA", "Yangın Alarm Testi", "Zone 3 dedektörü cevap vermedi.", "Murat AVCİ"),
@@ -273,6 +284,21 @@ def malzeme_yukle():
     })
 
 
+@st.cache_data(show_spinner=False)
+def gemi_resmi_base64(imo):
+    """ship_images/ klasöründe IMO numarasıyla eşleşen bir resim varsa base64 data-uri olarak döner, yoksa None."""
+    if not imo:
+        return None
+    ext_mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}
+    for ext, mime in ext_mime.items():
+        path = os.path.join(IMAGES_DIR, str(imo) + ext)
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                data = base64.b64encode(f.read()).decode()
+            return "data:" + mime + ";base64," + data
+    return None
+
+
 def kontrat_bilgi(giris_str, bitis_str):
     try:
         giris = datetime.date.fromisoformat(giris_str)
@@ -353,6 +379,11 @@ def ship_card_html(row):
     h += '<div class="contract-remaining ' + kcls + '">' + kalan_text + '</div>'
     h += '</div></div>'
     h += '<div class="ship-right">'
+    resim = gemi_resmi_base64(row["IMO"])
+    if resim:
+        h += '<img class="ship-photo" src="' + resim + '" alt="' + row["Gemi"] + '"/>'
+    else:
+        h += '<div class="ship-photo-placeholder">' + tip_emoji + '</div>'
     h += '<div class="ship-name">' + tip_emoji + ' ' + row["Gemi"] + '</div>'
     h += '<div class="ship-imo">IMO: ' + row["IMO"] + ' · ' + row["Tip"] + '</div>'
     h += '<div class="ship-info">'
@@ -472,7 +503,7 @@ menu = st.sidebar.radio(
      "📚 Teknik Dokümanlar", "🎓 ETO Eğitim & PSC", "⚡ Megger Kayıtları", "📄 Raporlama"],
 )
 st.sidebar.markdown("---")
-st.sidebar.caption("© 2026 TTS Ships · v3.8 (kalıcı veri + dinamik durum + sertifika DB)")
+st.sidebar.caption("© 2026 TTS Ships · v3.9 (kalıcı veri + dinamik durum + sertifika DB + gemi fotoğrafları)")
 
 fleet_df = fleet_df_yukle()
 
