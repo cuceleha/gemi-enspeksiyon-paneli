@@ -5,6 +5,7 @@ import io
 import os
 import sqlite3
 import base64
+import glob
 
 st.set_page_config(page_title="TTS Ships Panel", page_icon="⚡", layout="wide")
 
@@ -73,10 +74,14 @@ st.markdown("""
 # ------------------------------------------------------------------
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tts_ships.db")
 
-# Gemi fotoğrafları için klasör: app.py ile aynı dizinde "ship_images" klasörü oluşturup
-# içine <IMO_NUMARASI>.jpg / .jpeg / .png / .webp formatında dosya eklemen yeterli.
-# Örn: ship_images/9337028.jpg  -> M/V MED STAR (IMO 9337028)
-IMAGES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ship_images")
+# Gemi fotoğrafları için klasör(ler): app.py ile aynı dizinde bulunan, adı "ship_images"
+# veya "gemi isimleri" olan klasörler taranır. İçindeki dosyanın adı IMO numarasıyla
+# BAŞLIYORSA (uzantı ne olursa olsun, çift uzantı olsa bile) otomatik eşleştirilir.
+# Örn: 9337028.jpg, 9337028.jpg.jfif, 9337028.png -> hepsi M/V MED STAR (IMO 9337028) için geçerli.
+IMAGES_DIRS = [
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "ship_images"),
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "gemi isimleri"),
+]
 
 
 def get_conn():
@@ -286,15 +291,35 @@ def malzeme_yukle():
 
 @st.cache_data(show_spinner=False)
 def gemi_resmi_base64(imo):
-    """ship_images/ klasöründe IMO numarasıyla eşleşen bir resim varsa base64 data-uri olarak döner, yoksa None."""
+    """IMAGES_DIRS altındaki klasörlerde IMO numarasıyla BAŞLAYAN bir dosya arar
+    (uzantı/çift uzantı fark etmez) ve bulursa base64 data-uri olarak döner.
+    Görsel türü dosya adındaki uzantıya değil, dosyanın gerçek byte imzasına bakılarak belirlenir
+    (yükleme sırasında yanlış/çift uzantı verilmiş dosyalarda bile doğru çalışır)."""
     if not imo:
         return None
-    ext_mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}
-    for ext, mime in ext_mime.items():
-        path = os.path.join(IMAGES_DIR, str(imo) + ext)
-        if os.path.exists(path):
-            with open(path, "rb") as f:
-                data = base64.b64encode(f.read()).decode()
+    for klasor in IMAGES_DIRS:
+        if not os.path.isdir(klasor):
+            continue
+        eslesenler = sorted(glob.glob(os.path.join(klasor, str(imo) + "*")))
+        for path in eslesenler:
+            if not os.path.isfile(path):
+                continue
+            try:
+                with open(path, "rb") as f:
+                    veri = f.read()
+            except Exception:
+                continue
+            if veri[:3] == b"\xff\xd8\xff":
+                mime = "image/jpeg"
+            elif veri[:8] == b"\x89PNG\r\n\x1a\n":
+                mime = "image/png"
+            elif veri[:4] == b"RIFF" and veri[8:12] == b"WEBP":
+                mime = "image/webp"
+            elif veri[:6] in (b"GIF87a", b"GIF89a"):
+                mime = "image/gif"
+            else:
+                continue  # tanınmayan/bozuk dosya, atla
+            data = base64.b64encode(veri).decode()
             return "data:" + mime + ";base64," + data
     return None
 
