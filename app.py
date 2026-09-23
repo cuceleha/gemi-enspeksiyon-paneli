@@ -5,12 +5,6 @@ import io
 import os
 import sqlite3
 
-try:
-    import plotly.express as px
-    PLOTLY_AVAILABLE = True
-except ImportError:
-    PLOTLY_AVAILABLE = False
-
 st.set_page_config(page_title="TTS Ships Panel", page_icon="⚡", layout="wide")
 
 st.markdown("""
@@ -49,11 +43,6 @@ st.markdown("""
 .fault-item.low{background:#eaf7ee;border-left:4px solid #16a34a}
 .fault-item.closed{background:#f1f5f9;border-left:4px solid #94a3b8;opacity:.65}
 .fault-badge{font-size:10.5px;padding:2px 8px;border-radius:10px;background:#0b3d91;color:#fff;font-weight:600;white-space:nowrap}
-.crit-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700;margin-left:6px}
-.crit-badge.unsafe{background:#fdecea;color:#c0392b}
-.crit-badge.nearmiss{background:#fff4e0;color:#b76e00}
-.crit-badge.normal{background:#e6f4ea;color:#1e7e34}
-.recurring-badge{background:#fde8e8;color:#b91c1c;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700;margin-left:6px;white-space:nowrap}
 .inspect-item{padding:10px 12px;border-radius:8px;margin-bottom:8px;background:#f8fafc;border-left:4px solid #1e6fd9;font-size:12.5px}
 .inspect-date{font-size:10.5px;color:#7a8699;margin-bottom:3px}
 .inspect-title{font-weight:700;color:#0b3d91;margin-bottom:4px}
@@ -77,36 +66,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# SABİT LİSTELER (Arıza formu için)
-# ------------------------------------------------------------------
-KOK_NEDEN_LIST = [
-    "Seçilmedi",
-    "İnsan Hatası / Operasyonel Hata",
-    "Periyodik Bakım Eksikliği / Gecikmesi",
-    "Malzeme / Yedek Parça Kalitesi (Ömrünü Tamamlama)",
-    "Çevresel Faktörler (Aşırı nem, tuzlu su, ağır deniz şartları)",
-    "Kestirilemeyen / Beklenmeyen Parça Ömrü",
-    "Diğer",
-]
-
-KRITIKLIK_LIST = [
-    "Normal",
-    "⚠️ Unsafe Condition (Emniyetsiz Durum)",
-    "🔶 Near-Miss (Kıl Payı Kurtulma)",
-]
-
-DEPARTMAN_LIST = [
-    "Elektro-Teknik Zabit (ETO)",
-    "Başmühendis",
-    "Çarkçıbaşı",
-    "Güverte Zabiti",
-    "Dış Servis / Yüklenici",
-    "Diğer",
-]
-
-PARA_BIRIMI_LIST = ["TRY", "USD", "EUR"]
-
-# ------------------------------------------------------------------
 # VERİTABANI (SQLite) - Uygulama kapansa/yenilense bile veriler kalıcıdır
 # ------------------------------------------------------------------
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tts_ships.db")
@@ -127,16 +86,9 @@ def init_db():
         bayrak TEXT, yil TEXT, loa TEXT, eto TEXT, giris TEXT, kontrat_bitis TEXT
     )""")
 
-    # Not: Yeni kurulumlarda arıza kök-neden/maliyet/kritiklik alanları dahildir.
-    # Mevcut (eski) bir tts_ships.db dosyası varsa, migrate_db() bu sütunları sonradan ekler.
     cur.execute("""CREATE TABLE IF NOT EXISTS faults(
         id INTEGER PRIMARY KEY AUTOINCREMENT, gemi TEXT, ekipman TEXT,
-        aciliyet TEXT, tespit TEXT, aciklama TEXT, status TEXT DEFAULT 'Açık',
-        kok_neden TEXT DEFAULT '', kritiklik TEXT DEFAULT 'Normal',
-        tekrarlayan TEXT DEFAULT 'Hayır', parca_maliyeti REAL DEFAULT 0,
-        iscilik_maliyeti REAL DEFAULT 0, para_birimi TEXT DEFAULT 'TRY',
-        downtime_saat REAL DEFAULT 0, mudahale_eden TEXT DEFAULT '',
-        mudahale_departman TEXT DEFAULT '', kapanis_tarihi TEXT DEFAULT ''
+        aciliyet TEXT, tespit TEXT, aciklama TEXT, status TEXT DEFAULT 'Açık'
     )""")
 
     cur.execute("""CREATE TABLE IF NOT EXISTS inspections(
@@ -149,7 +101,7 @@ def init_db():
         miktar INTEGER, oncelik TEXT, tedarikci TEXT, talep TEXT
     )""")
 
-cur.execute("""CREATE TABLE IF NOT EXISTS purchases(
+    cur.execute("""CREATE TABLE IF NOT EXISTS purchases(
         id INTEGER PRIMARY KEY AUTOINCREMENT, tarih TEXT, gemi TEXT,
         malzeme TEXT, miktar INTEGER, oncelik TEXT, tedarikci TEXT,
         notlar TEXT, durum TEXT DEFAULT '🕓 Bekliyor'
@@ -167,41 +119,34 @@ cur.execute("""CREATE TABLE IF NOT EXISTS purchases(
     if cur.fetchone()[0] == 0:
         seed_ships = [
             ("M/V MED STAR", "9337028", "Container", "27254", "23633", "Panama", "2004", "191,10 m", "Ahmet YILMAZ", "2025-06-15", "2026-06-15"),
-            ("M/T MOON STAR", "8667823", "Tanker", "68687", "28640", "Liberia", "2011", "183 m", "Mehmet DEMİR", "2025-11-01", "2026-11-01"),
-            ("M/T KUZEY STAR II", "9496175", "Tanker", "8107", "4031", "Malta", "2020", "106,10 m", "Ali KAYA", "2026-01-20", "2027-01-20"),
-            ("M/V ARRO", "9310915", "Ro-Ro Cargo", "1500", "1266", "Liberia", "2003", "75 m", "Hasan ÇELİK", "2025-09-05", "2026-09-05"),
-            ("M/V AKBABA", "9151473", "Ro-Ro Cargo", "1500", "281", "Liberia", "2004", "75 m", "Emre ŞAHİN", "2025-12-01", "2026-09-01"),
-            ("M/V ALEXANDRIA I", "8903540", "Bulk Carrier", "8000", "4049", "Panama", "1991", "135,40 m", "Serkan AYDIN", "2025-07-12", "2026-07-12"),
-            ("M/V ALENA", "8667772", "Bulk Carrier", "6068", "4958", "Panama", "1981", "100,45 m", "Burak ÖZTÜRK", "2025-08-20", "2026-08-20"),
-            ("M/V ATLANTIC STAR", "9473327", "Bulk Carrier", "75000.58", "41074", "Liberia", "2011", "225 m", "Kemal ARSLAN", "2026-02-10", "2027-02-10"),
-            ("M/V PACIFIC STAR", "9470867", "Bulk Carrier", "39128", "41718", "Liberia", "2013", "224,50 m", "Onur YILDIZ", "2025-10-01", "2026-04-01"),
-            ("M/V CHIEF SEATTLE", "8270761", "Bulk Carrier", "50429", "30074", "Panama", "2005", "106.83 m", "Volkan KOÇ", "2025-05-18", "2026-05-18"),
-            ("M/V VENUS STAR", "9609134", "Bulk Carrier", "80688", "44025", "Liberia", "2011", "229 m", "Cem POLAT", "2025-03-01", "2027-03-01"),
-            ("M/V MERCUR STAR", "9800287", "Bulk Carrier", "75920", "43501", "Malta", "2016", "229 m", "Barış TAŞ", "2025-11-15", "2026-06-15"),
-            ("M/V DENIZ STAR", "1077472", "General Cargo", "8300", "8844", "Liberia", "2008", "142 m", "Tolga ERDOĞAN", "2026-01-01", "2026-10-03"),
-            ("M/V BLACK SEA STAR", "9740171", "General Cargo", "8330", "6752", "Liberia", "2008", "142 m", "Yusuf KURT", "2026-02-20", "2026-11-20"),
-            ("M/V SAPHIRA", "7824405", "Live Stock", "12600", "36668", "Antigua-Barbuda", "1995", "105.02 m", "Murat AVCI", "2025-04-10", "2026-04-10")
+            ("M/T MOON STAR", "9667928", "Tanker", "49997", "29940", "Liberia", "2013", "183 m", "Mehmet DEMİR", "2025-11-02", "2026-08-02"),
+            ("M/T KUZEY STAR II", "9499175", "Tanker", "6107", "4081", "Malta", "2020", "108,10 m", "Ali KAYA", "2026-01-20", "2027-01-20"),
+            ("M/V A380", "9310915", "Ro-Ro Cargo", "1300", "1285", "Liberia", "2003", "75 m", "Hasan ÇELİK", "2025-09-05", "2026-03-05"),
+            ("M/V AKBABA", "9319478", "Ro-Ro Cargo", "1300", "1281", "Liberia", "2004", "75 m", "Emre ŞAHİN", "2025-12-01", "2026-09-01"),
+            ("M/V ALEXANDRA I", "8876340", "Bulk Carrier", "6005", "4949", "Panama", "1991", "138,40 m", "Serkan AYDIN", "2025-07-12", "2026-07-12"),
+            ("M/V ALENA", "8857772", "Bulk Carrier", "6059", "4949", "Panama", "1991", "138,40 m", "Burak ÖZTÜRK", "2025-08-20", "2026-05-20"),
+            ("M/V ATLANTIC STAR", "9473327", "Bulk Carrier", "75002,58", "41074", "Liberia", "2011", "225 m", "Kemal ARSLAN", "2026-02-10", "2027-02-10"),
+            ("M/V PACIFIC STAR", "9470387", "Bulk Carrier", "78128", "41718", "Liberia", "2013", "224,90 m", "Onur YILDIZ", "2025-10-01", "2026-04-01"),
+            ("M/V CHIEF SEATTLE", "9230751", "Bulk Carrier", "52428", "30174", "Panama", "2001", "189,89 m", "Volkan KOÇ", "2025-05-18", "2026-05-18"),
+            ("M/V VENUS STAR", "9609134", "Bulk Carrier", "80888", "44025", "Liberia", "2013", "229 m", "Cem POLAT", "2026-03-01", "2027-03-01"),
+            ("M/V MERCUR STAR", "9609287", "Bulk Carrier", "79520", "43501", "Malta", "2015", "229 m", "Barış TAŞ", "2025-12-15", "2026-06-15"),
+            ("M/V DENIZ STAR", "1071472", "General Cargo", "8300", "6641", "Liberia", "2025", "142 m", "Tolga ERDOĞAN", "2026-01-05", "2026-10-05"),
+            ("M/V BLACKSEA STAR", "1114901", "General Cargo", "8330", "6732", "Liberia", "2025", "142 m", "Yusuf KURT", "2026-02-20", "2026-11-20"),
+            ("M/V SAPHIRA", "7924425", "Live Stock", "12900", "38988", "Antigua-Barbuda", "1995", "185,82 m", "Murat AVCİ", "2025-04-10", "2026-04-10"),
+            # Not: orijinal arıza listesinde geçen M/V BOSPHORUS filo tablosunda yoktu, tutarlılık için ekleniyor
+            ("M/V BOSPHORUS", "9000001", "Tanker", "45000", "27000", "Malta", "2010", "180 m", "Deniz KARA", "2025-09-01", "2026-09-01"),
         ]
         cur.executemany("INSERT INTO ships VALUES (?,?,?,?,?,?,?,?,?,?,?)", seed_ships)
 
         seed_faults = [
-            ("M/V BOSPHORUS", "Ana Jeneratör No:2", "Yüksek", "2026-09-18", "Sargı izolasyon direnci düşük (0.6 MOhm).", "Açık",
-             "Periyodik Bakım Eksikliği / Gecikmesi", "⚠️ Unsafe Condition (Emniyetsiz Durum)", "Hayır", 8500, 3200, "TRY", 6, "Deniz KARA", "Elektro-Teknik Zabit (ETO)", ""),
-            ("M/V MED STAR", "Bow Thruster Kumanda Panosu", "Orta", "2026-09-15", "Kumanda kartı arızalı.", "Açık",
-             "Malzeme / Yedek Parça Kalitesi (Ömrünü Tamamlama)", "Normal", "Hayır", 1200, 0, "USD", 12, "Ahmet YILMAZ", "Elektro-Teknik Zabit (ETO)", ""),
-            ("M/T MOON STAR", "Acil Aydınlatma Devresi", "Yüksek", "2026-09-20", "Toprak kaçağı tespit edildi.", "Açık",
-             "Çevresel Faktörler (Aşırı nem, tuzlu su, ağır deniz şartları)", "🔶 Near-Miss (Kıl Payı Kurtulma)", "Evet", 300, 0, "TRY", 3, "Mehmet DEMİR", "Elektro-Teknik Zabit (ETO)", ""),
-            ("M/V A380", "Soğutma Kompresörü Motoru", "Düşük", "2026-09-10", "Rulman sesi artmış.", "Açık",
-             "Kestirilemeyen / Beklenmeyen Parça Ömrü", "Normal", "Hayır", 450, 200, "TRY", 0, "Hasan ÇELİK", "Çarkçıbaşı", ""),
-            ("M/V ATLANTIC STAR", "MSB Bus-Bar Bağlantısı", "Yüksek", "2026-09-12", "Sıcak nokta tespit edildi (85 C).", "Açık",
-             "Periyodik Bakım Eksikliği / Gecikmesi", "⚠️ Unsafe Condition (Emniyetsiz Durum)", "Hayır", 0, 5000, "USD", 24, "Kemal ARSLAN", "Başmühendis", ""),
-            ("M/V SAPHIRA", "Yangın Alarm Panosu", "Orta", "2026-09-08", "Zone 3 dedektörü arızalı.", "Açık",
-             "Malzeme / Yedek Parça Kalitesi (Ömrünü Tamamlama)", "Normal", "Hayır", 600, 0, "TRY", 0, "Murat AVCİ", "Elektro-Teknik Zabit (ETO)", ""),
+            ("M/V BOSPHORUS", "Ana Jeneratör No:2", "Yüksek", "2026-09-18", "Sargı izolasyon direnci düşük (0.6 MOhm).", "Açık"),
+            ("M/V MED STAR", "Bow Thruster Kumanda Panosu", "Orta", "2026-09-15", "Kumanda kartı arızalı.", "Açık"),
+            ("M/T MOON STAR", "Acil Aydınlatma Devresi", "Yüksek", "2026-09-20", "Toprak kaçağı tespit edildi.", "Açık"),
+            ("M/V A380", "Soğutma Kompresörü Motoru", "Düşük", "2026-09-10", "Rulman sesi artmış.", "Açık"),
+            ("M/V ATLANTIC STAR", "MSB Bus-Bar Bağlantısı", "Yüksek", "2026-09-12", "Sıcak nokta tespit edildi (85 C).", "Açık"),
+            ("M/V SAPHIRA", "Yangın Alarm Panosu", "Orta", "2026-09-08", "Zone 3 dedektörü arızalı.", "Açık"),
         ]
-        cur.executemany("""INSERT INTO faults(gemi,ekipman,aciliyet,tespit,aciklama,status,
-            kok_neden,kritiklik,tekrarlayan,parca_maliyeti,iscilik_maliyeti,para_birimi,
-            downtime_saat,mudahale_eden,mudahale_departman,kapanis_tarihi)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", seed_faults)
+        cur.executemany("INSERT INTO faults(gemi,ekipman,aciliyet,tespit,aciklama,status) VALUES (?,?,?,?,?,?)", seed_faults)
 
         seed_inspections = [
             ("2026-09-20", "M/T MOON STAR", "Aylık Elektrik Denetimi", "MSB, acil jeneratör kontrol edildi. Acil aydınlatmada toprak kaçağı bulundu.", "Ahmet YILMAZ"),
@@ -230,40 +175,7 @@ cur.execute("""CREATE TABLE IF NOT EXISTS purchases(
     conn.close()
 
 
-def migrate_db():
-    """Var olan (eski) tts_ships.db dosyalarında eksik olan yeni arıza sütunlarını ekler.
-    Böylece daha önce kurulmuş ve içinde veri olan panelde veri kaybı yaşanmaz."""
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("PRAGMA table_info(faults)")
-    existing_cols = {row[1] for row in cur.fetchall()}
-    new_cols = {
-        "kok_neden": "TEXT DEFAULT ''",
-        "kritiklik": "TEXT DEFAULT 'Normal'",
-        "tekrarlayan": "TEXT DEFAULT 'Hayır'",
-        "parca_maliyeti": "REAL DEFAULT 0",
-        "iscilik_maliyeti": "REAL DEFAULT 0",
-        "para_birimi": "TEXT DEFAULT 'TRY'",
-        "downtime_saat": "REAL DEFAULT 0",
-        "mudahale_eden": "TEXT DEFAULT ''",
-        "mudahale_departman": "TEXT DEFAULT ''",
-        "kapanis_tarihi": "TEXT DEFAULT ''"
-    }
-    for col, col_type in new_cols.items():
-        if col not in existing_cols:
-            cur.execute(f"ALTER TABLE faults ADD COLUMN {col} {col_type}")
-    conn.commit()
-    conn.close()
-    }
-    for col, coltype in new_cols.items():
-        if col not in existing_cols:
-            cur.execute("ALTER TABLE faults ADD COLUMN " + col + " " + coltype)
-    conn.commit()
-    conn.close()
-
-
 init_db()
-migrate_db()
 
 
 # ------------------------------------------------------------------
@@ -308,43 +220,15 @@ def fleet_df_yukle():
     return df
 
 
-FAULT_RENAME = {
-    "gemi": "Gemi", "ekipman": "Ekipman", "aciliyet": "Aciliyet",
-    "tespit": "Tespit", "aciklama": "Aciklama", "status": "Durum",
-    "kok_neden": "KokNeden", "kritiklik": "Kritiklik", "tekrarlayan": "Tekrarlayan",
-    "parca_maliyeti": "ParcaMaliyeti", "iscilik_maliyeti": "IscilikMaliyeti",
-    "para_birimi": "ParaBirimi", "downtime_saat": "DowntimeSaat",
-    "mudahale_eden": "MudahaleEden", "mudahale_departman": "MudahaleDepartman",
-    "kapanis_tarihi": "KapanisTarihi",
-}
-
-
 def arizalar_yukle(sadece_acik=True):
     if sadece_acik:
         df = df_from("SELECT * FROM faults WHERE status='Açık' ORDER BY tespit DESC")
     else:
         df = df_from("SELECT * FROM faults ORDER BY tespit DESC")
-    return df.rename(columns=FAULT_RENAME)
-
-
-def hesapla_tekrar_sayisi(gemi, ekipman, gun=90):
-    """Aynı gemi + ekipman için son `gun` gün içindeki geçmiş arıza sayısını döndürür
-    (yeni eklenecek kayıt hariç). 0'dan büyükse yeni kayıt 'tekrarlayan' sayılır."""
-    if not gemi or not ekipman:
-        return 0
-    gecmis = df_from("SELECT tespit FROM faults WHERE gemi=? AND ekipman=?", (gemi, ekipman))
-    if gecmis.empty:
-        return 0
-    sinir = datetime.date.today() - datetime.timedelta(days=gun)
-    sayac = 0
-    for t in gecmis["tespit"]:
-        try:
-            tarih = datetime.date.fromisoformat(str(t)[:10])
-            if tarih >= sinir:
-                sayac += 1
-        except Exception:
-            continue
-    return sayac
+    return df.rename(columns={
+        "gemi": "Gemi", "ekipman": "Ekipman", "aciliyet": "Aciliyet",
+        "tespit": "Tespit", "aciklama": "Aciklama", "status": "Durum",
+    })
 
 
 def denetlemeler_yukle():
@@ -443,23 +327,10 @@ def render_ariza(fleet_df):
             cls = "high"
         elif a["Aciliyet"] == "Orta":
             cls = "mid"
-        krit_cls = "normal"
-        krit_deger = str(a.get("Kritiklik", "") or "")
-        if "Unsafe" in krit_deger:
-            krit_cls = "unsafe"
-        elif "Near-Miss" in krit_deger:
-            krit_cls = "nearmiss"
         line = '<div class="fault-item ' + cls + '">'
         line += '<div><b>' + a["Gemi"] + '</b> · ' + a["Ekipman"]
-        if krit_deger and krit_deger != "Normal":
-            line += '<span class="crit-badge ' + krit_cls + '">' + krit_deger + '</span>'
-        if str(a.get("Tekrarlayan", "")) == "Evet":
-            line += '<span class="recurring-badge">🔁 Tekrarlayan</span>'
         line += '<div style="font-size:11px;color:#5a6b82;margin-top:3px;">' + a["Aciklama"] + '</div>'
-        alt_bilgi = 'Tespit: ' + a["Tespit"]
-        if a.get("KokNeden") and a["KokNeden"] not in ("", "Seçilmedi"):
-            alt_bilgi += ' · Kök Neden: ' + a["KokNeden"]
-        line += '<div style="font-size:10px;color:#7a8699;margin-top:3px;">' + alt_bilgi + '</div></div>'
+        line += '<div style="font-size:10px;color:#7a8699;margin-top:3px;">Tespit: ' + a["Tespit"] + '</div></div>'
         line += '<span class="fault-badge">' + a["Aciliyet"] + '</span></div>'
         st.markdown(line, unsafe_allow_html=True)
 
@@ -471,62 +342,28 @@ def render_ariza(fleet_df):
             secim = st.selectbox("Kapatılacak arıza", secim_etiketleri, key="ariza_kapat_sec")
             if st.button("Kapat", key="ariza_kapat_btn"):
                 fault_id = int(secim.split(" — ")[0])
-                run("UPDATE faults SET status='Kapalı', kapanis_tarihi=? WHERE id=?",
-                    (str(datetime.date.today()), fault_id))
-                st.success("✅ Arıza kapatıldı. Dashboard'dan kaldırıldı; detaylı kayıt 'Gemi Arızaları' panelinde saklanmaya devam ediyor.")
+                run("UPDATE faults SET status='Kapalı' WHERE id=?", (fault_id,))
+                st.success("✅ Arıza kapatıldı, gemi durumu güncellendi.")
                 st.rerun()
         else:
             st.caption("Kapatılacak açık arıza yok.")
 
     with st.expander("➕ Yeni Arıza Ekle"):
-        cg, ce = st.columns(2)
-        with cg:
-            gemi_sec = st.selectbox("Gemi", fleet_df["Gemi"].tolist(), key="yeni_ariza_gemi_sec")
-        with ce:
-            ekipman_sec = st.text_input("Ekipman", key="yeni_ariza_ekipman_sec")
-
-        tekrar_sayisi = hesapla_tekrar_sayisi(gemi_sec, ekipman_sec)
-        if tekrar_sayisi > 0:
-            st.warning(
-                "⚠️ Bu ekipmanda (" + ekipman_sec + ") son 90 günde " + str(tekrar_sayisi) +
-                ". kez arıza kaydı bulunuyor. Kaydedilirse bu arıza **tekrarlayan** olarak işaretlenecek."
-            )
-
         with st.form("yeni_ariza_form"):
             c1, c2 = st.columns(2)
             with c1:
+                gemi = st.selectbox("Gemi", fleet_df["Gemi"].tolist(), key="yeni_ariza_gemi")
+                ekipman = st.text_input("Ekipman")
+            with c2:
                 aciliyet = st.selectbox("Aciliyet", ["Yüksek", "Orta", "Düşük"], key="yeni_ariza_aciliyet")
                 tespit = st.date_input("Tespit Tarihi", datetime.date.today(), key="yeni_ariza_tarih")
-                kok_neden = st.selectbox("Kök Neden (Root Cause)", KOK_NEDEN_LIST, key="yeni_ariza_kok")
-                kritiklik = st.selectbox("Kritiklik / Emniyet Etkisi", KRITIKLIK_LIST, key="yeni_ariza_kritiklik")
-            with c2:
-                mudahale_eden = st.text_input("Müdahale Eden Personel", key="yeni_ariza_personel")
-                mudahale_departman = st.selectbox("Departman", DEPARTMAN_LIST, key="yeni_ariza_departman")
-                para_birimi = st.selectbox("Para Birimi", PARA_BIRIMI_LIST, key="yeni_ariza_para")
-
-            aciklama = st.text_area("Açıklama", key="yeni_ariza_aciklama")
-
-            st.markdown("**💰 Maliyet ve Duruş Bilgileri**")
-            m1, m2, m3 = st.columns(3)
-            with m1:
-                parca_maliyeti = st.number_input("Yedek Parça Maliyeti", min_value=0.0, value=0.0, step=50.0, key="yeni_ariza_parca_mal")
-            with m2:
-                iscilik_maliyeti = st.number_input("Servis / İşçilik Maliyeti", min_value=0.0, value=0.0, step=50.0, key="yeni_ariza_iscilik_mal")
-            with m3:
-                downtime_saat = st.number_input("Duruş (Down-time) Süresi (saat)", min_value=0.0, value=0.0, step=0.5, key="yeni_ariza_downtime")
-
-            if st.form_submit_button("Kaydet") and ekipman_sec:
-                tekrarlayan = "Evet" if tekrar_sayisi > 0 else "Hayır"
+            aciklama = st.text_area("Açıklama")
+            if st.form_submit_button("Kaydet") and ekipman:
                 run(
-                    """INSERT INTO faults(gemi,ekipman,aciliyet,tespit,aciklama,status,
-                       kok_neden,kritiklik,tekrarlayan,parca_maliyeti,iscilik_maliyeti,
-                       para_birimi,downtime_saat,mudahale_eden,mudahale_departman,kapanis_tarihi)
-                       VALUES (?,?,?,?,?,'Açık',?,?,?,?,?,?,?,?,?,'')""",
-                    (gemi_sec, ekipman_sec, aciliyet, str(tespit), aciklama,
-                     kok_neden, kritiklik, tekrarlayan, parca_maliyeti, iscilik_maliyeti,
-                     para_birimi, downtime_saat, mudahale_eden, mudahale_departman),
+                    "INSERT INTO faults(gemi,ekipman,aciliyet,tespit,aciklama,status) VALUES (?,?,?,?,?, 'Açık')",
+                    (gemi, ekipman, aciliyet, str(tespit), aciklama),
                 )
-                st.success("✅ Arıza eklendi ve 'Gemi Arızaları' analiz panelinde kalıcı olarak kayıt altına alındı.")
+                st.success("✅ Arıza eklendi.")
                 st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
@@ -571,186 +408,13 @@ def render_malzeme():
     st.markdown('</div>', unsafe_allow_html=True)
 
 
-def render_fault_analytics():
-    st.subheader("📊 Gemi Arızaları - Analiz ve Raporlama Paneli")
-    st.caption("Bu panel tüm arıza kayıtlarını (açık + kapalı) kalıcı olarak listeler. "
-               "Dashboard'da bir arıza kapatıldığında buradan silinmez; sadece açık arıza listesinden kaldırılır.")
-
-    tum_df = df_from("SELECT * FROM faults ORDER BY tespit DESC")
-    if tum_df.empty:
-        st.info("Henüz arıza kaydı yok.")
-        return
-
-    tum_df = tum_df.rename(columns=FAULT_RENAME)
-    tum_df["ParcaMaliyeti"] = pd.to_numeric(tum_df["ParcaMaliyeti"], errors="coerce").fillna(0)
-    tum_df["IscilikMaliyeti"] = pd.to_numeric(tum_df["IscilikMaliyeti"], errors="coerce").fillna(0)
-    tum_df["DowntimeSaat"] = pd.to_numeric(tum_df["DowntimeSaat"], errors="coerce").fillna(0)
-    tum_df["ToplamMaliyet"] = tum_df["ParcaMaliyeti"] + tum_df["IscilikMaliyeti"]
-
-    with st.expander("🔍 Filtrele", expanded=True):
-        f1, f2, f3, f4 = st.columns(4)
-        with f1:
-            gemi_f = st.multiselect("Gemi", sorted(tum_df["Gemi"].unique().tolist()), default=[], key="fa_gemi")
-        with f2:
-            durum_f = st.multiselect("Durum", sorted(tum_df["Durum"].unique().tolist()), default=[], key="fa_durum")
-        with f3:
-            kritiklik_f = st.multiselect("Kritiklik", sorted(tum_df["Kritiklik"].unique().tolist()), default=[], key="fa_krit")
-        with f4:
-            kok_secenekleri = sorted([k for k in tum_df["KokNeden"].unique().tolist() if k and k != "Seçilmedi"])
-            kok_f = st.multiselect("Kök Neden", kok_secenekleri, default=[], key="fa_kok")
-
-    df = tum_df.copy()
-    if gemi_f:
-        df = df[df["Gemi"].isin(gemi_f)]
-    if durum_f:
-        df = df[df["Durum"].isin(durum_f)]
-    if kritiklik_f:
-        df = df[df["Kritiklik"].isin(kritiklik_f)]
-    if kok_f:
-        df = df[df["KokNeden"].isin(kok_f)]
-
-    if df.empty:
-        st.warning("Seçilen filtrelere uyan kayıt yok.")
-        return
-
-    acik_sayi = int((df["Durum"] == "Açık").sum())
-    kapali_sayi = int((df["Durum"] == "Kapalı").sum())
-    tekrar_sayi = int((df["Tekrarlayan"] == "Evet").sum())
-    unsafe_sayi = int(df["Kritiklik"].astype(str).str.contains("Unsafe").sum())
-    nearmiss_sayi = int(df["Kritiklik"].astype(str).str.contains("Near-Miss").sum())
-    toplam_downtime = float(df["DowntimeSaat"].sum())
-
-    k1, k2, k3, k4, k5, k6 = st.columns(6)
-    k1.metric("Toplam Arıza", len(df))
-    k2.metric("🔓 Açık", acik_sayi)
-    k3.metric("🔒 Kapalı", kapali_sayi)
-    k4.metric("🔁 Tekrarlayan", tekrar_sayi)
-    k5.metric("⚠️ Unsafe/Near-Miss", unsafe_sayi + nearmiss_sayi)
-    k6.metric("⏱️ Toplam Duruş (saat)", round(toplam_downtime, 1))
-
-    # ortalama çözüm süresi (yalnız kapanış tarihi girilmiş kapalı arızalar için)
-    kapali_df = df[(df["Durum"] == "Kapalı") & (df["KapanisTarihi"].astype(str) != "")]
-    ort_cozum_suresi = None
-    if not kapali_df.empty:
-        sureler = []
-        for _, r in kapali_df.iterrows():
-            try:
-                t1 = datetime.date.fromisoformat(str(r["Tespit"])[:10])
-                t2 = datetime.date.fromisoformat(str(r["KapanisTarihi"])[:10])
-                sureler.append((t2 - t1).days)
-            except Exception:
-                continue
-        if sureler:
-            ort_cozum_suresi = sum(sureler) / len(sureler)
-
-    if ort_cozum_suresi is not None:
-        st.caption("📈 Ortalama arıza çözüm süresi: **" + f"{ort_cozum_suresi:.1f}" + " gün** (kapatılan arızalar için)")
-
-    st.markdown("#### 💰 Para Birimine Göre Toplam Maliyet")
-    maliyet_ozet = df.groupby("ParaBirimi")["ToplamMaliyet"].sum().reset_index()
-    if not maliyet_ozet.empty:
-        mcols = st.columns(max(len(maliyet_ozet), 1))
-        for i, (_, row) in enumerate(maliyet_ozet.iterrows()):
-            mcols[i].metric(row["ParaBirimi"], f'{row["ToplamMaliyet"]:,.0f}')
-    else:
-        st.caption("Maliyet verisi yok.")
-
-    st.markdown("---")
-
-    if not PLOTLY_AVAILABLE:
-        st.warning("Grafikleri görüntülemek için `plotly` kütüphanesi gerekli. Terminalde `pip install plotly` çalıştırıp uygulamayı yeniden başlatın.")
-    else:
-        g1, g2 = st.columns(2)
-        with g1:
-            kok_ozet = df[(df["KokNeden"] != "") & (df["KokNeden"] != "Seçilmedi")]["KokNeden"].value_counts().reset_index()
-            kok_ozet.columns = ["KokNeden", "Adet"]
-            if not kok_ozet.empty:
-                fig1 = px.pie(kok_ozet, names="KokNeden", values="Adet", title="Kök Neden Dağılımı", hole=0.4)
-                st.plotly_chart(fig1, use_container_width=True)
-            else:
-                st.caption("Kök neden verisi girilmemiş.")
-        with g2:
-            krit_ozet = df["Kritiklik"].value_counts().reset_index()
-            krit_ozet.columns = ["Kritiklik", "Adet"]
-            fig2 = px.pie(krit_ozet, names="Kritiklik", values="Adet", title="Kritiklik / Emniyet Etkisi Dağılımı", hole=0.4)
-            st.plotly_chart(fig2, use_container_width=True)
-
-        g3, g4 = st.columns(2)
-        with g3:
-            gemi_ozet = df["Gemi"].value_counts().reset_index()
-            gemi_ozet.columns = ["Gemi", "Adet"]
-            fig3 = px.bar(gemi_ozet, x="Gemi", y="Adet", title="Gemi Bazında Arıza Sayısı", color="Adet", color_continuous_scale="Blues")
-            st.plotly_chart(fig3, use_container_width=True)
-        with g4:
-            dep_ozet = df[df["MudahaleDepartman"] != ""]["MudahaleDepartman"].value_counts().reset_index()
-            dep_ozet.columns = ["Departman", "Adet"]
-            if not dep_ozet.empty:
-                fig4 = px.bar(dep_ozet, x="Departman", y="Adet", title="Departman Bazında Müdahale Sayısı", color="Adet", color_continuous_scale="Oranges")
-                st.plotly_chart(fig4, use_container_width=True)
-            else:
-                st.caption("Müdahale eden departman verisi girilmemiş.")
-
-        df_trend = df.copy()
-        df_trend["Ay"] = pd.to_datetime(df_trend["Tespit"], errors="coerce").dt.to_period("M").astype(str)
-        trend_ozet = df_trend.dropna(subset=["Ay"]).groupby("Ay").size().reset_index(name="Adet")
-        if not trend_ozet.empty:
-            fig5 = px.line(trend_ozet, x="Ay", y="Adet", markers=True, title="Aylık Arıza Trendi")
-            st.plotly_chart(fig5, use_container_width=True)
-
-    st.markdown("---")
-    st.markdown("#### 📋 Tüm Arıza Kayıtları (Detaylı)")
-
-    def satir_renklendir(row):
-        if row["Durum"] == "Kapalı":
-            return ["background-color: #f1f5f9"] * len(row)
-        if "Unsafe" in str(row["Kritiklik"]):
-            return ["background-color: #fdecea"] * len(row)
-        if "Near-Miss" in str(row["Kritiklik"]):
-            return ["background-color: #fff4e0"] * len(row)
-        if row["Tekrarlayan"] == "Evet":
-            return ["background-color: #fff7e6"] * len(row)
-        return [""] * len(row)
-
-    goster_kolonlar = ["Gemi", "Ekipman", "Aciliyet", "Kritiklik", "Durum", "Tespit", "KapanisTarihi",
-                        "KokNeden", "Tekrarlayan", "ParcaMaliyeti", "IscilikMaliyeti", "ParaBirimi",
-                        "DowntimeSaat", "MudahaleEden", "MudahaleDepartman", "Aciklama"]
-    goster_df = df[goster_kolonlar]
-    try:
-        st.dataframe(goster_df.style.apply(satir_renklendir, axis=1), use_container_width=True)
-    except Exception:
-        st.dataframe(goster_df, use_container_width=True)
-
-    with st.expander("📝 Yönetici Özeti (Sunum için kopyalanabilir metin)"):
-        ozet_metin = (
-            "Seçili dönemde toplam " + str(len(df)) + " arıza kaydı bulunmaktadır. "
-            + str(acik_sayi) + " tanesi hâlâ açık, " + str(kapali_sayi) + " tanesi kapatılmıştır. "
-            + str(tekrar_sayi) + " arıza tekrarlayan nitelikte olup, " + str(unsafe_sayi)
-            + " adet Unsafe Condition ve " + str(nearmiss_sayi) + " adet Near-Miss vakası kaydedilmiştir. "
-            "Arızalar toplamda " + f"{round(toplam_downtime, 1)}" + " saatlik operasyonel duruşa neden olmuştur."
-        )
-        if ort_cozum_suresi is not None:
-            ozet_metin += " Ortalama arıza çözüm süresi " + f"{ort_cozum_suresi:.1f}" + " gündür."
-        st.text_area("Özet", ozet_metin, height=120, key="fa_ozet_metin")
-
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-        goster_df.to_excel(writer, index=False, sheet_name="GemiArizalari")
-    st.download_button(
-        "⬇️ Excel Olarak İndir (Sunum için)",
-        data=buffer.getvalue(),
-        file_name="gemi_arizalari_analiz.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        key="fa_excel_indir",
-    )
-
-
 menu = st.sidebar.radio(
     "📌 Navigasyon",
-    ["🏠 Dashboard", "📊 Gemi Arızaları", "🚢 Filo Yönetimi", "📜 Sertifika & Survey", "🛒 Satınalma",
+    ["🏠 Dashboard", "🚢 Filo Yönetimi", "📜 Sertifika & Survey", "🛒 Satınalma",
      "📚 Teknik Dokümanlar", "🎓 ETO Eğitim & PSC", "⚡ Megger Kayıtları", "📄 Raporlama"],
 )
 st.sidebar.markdown("---")
-st.sidebar.caption("© 2026 TTS Ships · v3.8 (kalıcı veri + dinamik durum + arıza analiz paneli)")
+st.sidebar.caption("© 2026 TTS Ships · v3.7 (kalıcı veri + dinamik durum)")
 
 fleet_df = fleet_df_yukle()
 
@@ -794,9 +458,6 @@ if menu == "🏠 Dashboard":
         render_malzeme()
     st.markdown("---")
     render_denetleme()
-
-elif menu == "📊 Gemi Arızaları":
-    render_fault_analytics()
 
 elif menu == "🚢 Filo Yönetimi":
     st.subheader("🚢 Filo Yönetimi (Tablo Görünümü)")
@@ -944,7 +605,7 @@ elif menu == "⚡ Megger Kayıtları":
 
 elif menu == "📄 Raporlama":
     st.subheader("📄 Excel Raporlama")
-    rapor_tipi = st.selectbox("Rapor Tipi", ["Filo Listesi", "Satınalma", "Megger Kayıtları", "Arızalar (Açık)", "Arızalar (Tüm - Detaylı)"])
+    rapor_tipi = st.selectbox("Rapor Tipi", ["Filo Listesi", "Satınalma", "Megger Kayıtları", "Arızalar (Açık)"])
     if rapor_tipi == "Filo Listesi":
         df_rapor = fleet_df
     elif rapor_tipi == "Satınalma":
@@ -953,10 +614,6 @@ elif menu == "📄 Raporlama":
             df_rapor = pd.DataFrame([{"Not": "Kayit yok"}])
     elif rapor_tipi == "Megger Kayıtları":
         df_rapor = df_from("SELECT * FROM megger ORDER BY id DESC")
-        if df_rapor.empty:
-            df_rapor = pd.DataFrame([{"Not": "Kayit yok"}])
-    elif rapor_tipi == "Arızalar (Tüm - Detaylı)":
-        df_rapor = arizalar_yukle(sadece_acik=False)
         if df_rapor.empty:
             df_rapor = pd.DataFrame([{"Not": "Kayit yok"}])
     else:
