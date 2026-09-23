@@ -112,6 +112,11 @@ def init_db():
         devre TEXT, test_v TEXT, ir_deger REAL, sonuc TEXT
     )""")
 
+    cur.execute("""CREATE TABLE IF NOT EXISTS certificates(
+        id INTEGER PRIMARY KEY AUTOINCREMENT, gemi TEXT, sertifika TEXT,
+        veren_kurum TEXT, duzenleme_tarihi TEXT, bitis TEXT, notlar TEXT
+    )""")
+
     conn.commit()
 
     # İlk çalıştırmada seed (örnek) veriyi yükle - sadece tablo boşsa
@@ -170,6 +175,27 @@ def init_db():
         ]
         cur.executemany("INSERT INTO materials(malzeme,gemi,miktar,oncelik,tedarikci,talep) VALUES (?,?,?,?,?,?)", seed_materials)
 
+        conn.commit()
+
+    # Sertifika tablosu için ayrı seed kontrolü (mevcut kurulumlarda ships/faults/materials
+    # dolu olsa bile certificates tablosu boş olabileceğinden ayrı kontrol ediyoruz)
+    cur.execute("SELECT COUNT(*) FROM certificates")
+    if cur.fetchone()[0] == 0:
+        t = datetime.date.today()
+        seed_certs = [
+            ("M/V MED STAR", "Safety Equipment", "Class NK", str(t - datetime.timedelta(days=350)), str(t + datetime.timedelta(days=15)), ""),
+            ("M/V MED STAR", "Load Line", "Class NK", str(t - datetime.timedelta(days=185)), str(t + datetime.timedelta(days=180)), ""),
+            ("M/T MOON STAR", "IOPP", "DNV", str(t - datetime.timedelta(days=355)), str(t + datetime.timedelta(days=5)), ""),
+            ("M/T MOON STAR", "Safety Construction", "DNV", str(t - datetime.timedelta(days=125)), str(t + datetime.timedelta(days=240)), ""),
+            ("M/T KUZEY STAR II", "ISSC", "Türk Loydu", str(t - datetime.timedelta(days=270)), str(t + datetime.timedelta(days=90)), ""),
+            ("M/V ATLANTIC STAR", "IAPP", "ABS", str(t - datetime.timedelta(days=368)), str(t - datetime.timedelta(days=3)), "Yenileme bekleniyor"),
+            ("M/V PACIFIC STAR", "Class Certificate", "ABS", str(t - datetime.timedelta(days=320)), str(t + datetime.timedelta(days=45)), ""),
+            ("M/V SAPHIRA", "IOPP", "Bureau Veritas", str(t - datetime.timedelta(days=45)), str(t + datetime.timedelta(days=320)), ""),
+        ]
+        cur.executemany(
+            "INSERT INTO certificates(gemi,sertifika,veren_kurum,duzenleme_tarihi,bitis,notlar) VALUES (?,?,?,?,?,?)",
+            seed_certs,
+        )
         conn.commit()
 
     conn.close()
@@ -267,6 +293,38 @@ def kontrat_bilgi(giris_str, bitis_str):
     else:
         cls = ""
     return kalan, yuzde, cls
+
+
+def sertifika_durum_hesapla(bitis_str):
+    """Bitiş tarihine göre kalan gün ve durum rozetini dinamik hesaplar."""
+    try:
+        bitis = datetime.date.fromisoformat(bitis_str)
+    except Exception:
+        return 0, "🟢 Geçerli"
+    kalan = (bitis - datetime.date.today()).days
+    if kalan < 0:
+        return kalan, "🔴 Süresi Geçti"
+    if kalan <= 30:
+        return kalan, "🔴 Kritik"
+    if kalan <= 90:
+        return kalan, "🟡 Yakında"
+    return kalan, "🟢 Geçerli"
+
+
+def sertifika_yukle():
+    df = df_from("SELECT * FROM certificates ORDER BY bitis ASC")
+    df = df.rename(columns={
+        "gemi": "Gemi", "sertifika": "Sertifika", "veren_kurum": "VerenKurum",
+        "duzenleme_tarihi": "DuzenlemeTarihi", "bitis": "Bitis", "notlar": "Notlar",
+    })
+    if df.empty:
+        df["KalanGun"] = []
+        df["Durum"] = []
+        return df
+    sonuc = df["Bitis"].apply(sertifika_durum_hesapla)
+    df["KalanGun"] = sonuc.apply(lambda x: x[0])
+    df["Durum"] = sonuc.apply(lambda x: x[1])
+    return df
 
 
 def ship_card_html(row):
@@ -414,7 +472,7 @@ menu = st.sidebar.radio(
      "📚 Teknik Dokümanlar", "🎓 ETO Eğitim & PSC", "⚡ Megger Kayıtları", "📄 Raporlama"],
 )
 st.sidebar.markdown("---")
-st.sidebar.caption("© 2026 TTS Ships · v3.7 (kalıcı veri + dinamik durum)")
+st.sidebar.caption("© 2026 TTS Ships · v3.8 (kalıcı veri + dinamik durum + sertifika DB)")
 
 fleet_df = fleet_df_yukle()
 
@@ -465,25 +523,65 @@ elif menu == "🚢 Filo Yönetimi":
 
 elif menu == "📜 Sertifika & Survey":
     st.subheader("📜 Sertifika & Survey Takibi")
-    t = datetime.date.today()
-    cd = [
-        {"Gemi": "M/V MED STAR", "Sertifika": "Safety Equipment", "Bitis": str(t + datetime.timedelta(days=15)), "Durum": "🟡 Yakında"},
-        {"Gemi": "M/V MED STAR", "Sertifika": "Load Line", "Bitis": str(t + datetime.timedelta(days=180)), "Durum": "🟢 Geçerli"},
-        {"Gemi": "M/T MOON STAR", "Sertifika": "IOPP", "Bitis": str(t + datetime.timedelta(days=5)), "Durum": "🔴 Kritik"},
-        {"Gemi": "M/T MOON STAR", "Sertifika": "Safety Construction", "Bitis": str(t + datetime.timedelta(days=240)), "Durum": "🟢 Geçerli"},
-        {"Gemi": "M/T KUZEY STAR II", "Sertifika": "ISSC", "Bitis": str(t + datetime.timedelta(days=90)), "Durum": "🟢 Geçerli"},
-        {"Gemi": "M/V ATLANTIC STAR", "Sertifika": "IAPP", "Bitis": str(t - datetime.timedelta(days=3)), "Durum": "🔴 Süresi Geçti"},
-        {"Gemi": "M/V PACIFIC STAR", "Sertifika": "Class Certificate", "Bitis": str(t + datetime.timedelta(days=45)), "Durum": "🟡 Yakında"},
-        {"Gemi": "M/V SAPHIRA", "Sertifika": "IOPP", "Bitis": str(t + datetime.timedelta(days=320)), "Durum": "🟢 Geçerli"},
-    ]
-    cert_df = pd.DataFrame(cd)
-    kritik_sayisi = sum(1 for d in cd if "Kritik" in d["Durum"] or "Süresi" in d["Durum"])
-    yakinda_sayisi = sum(1 for d in cd if "Yakında" in d["Durum"])
-    k1, k2, k3 = st.columns(3)
+    cert_df = sertifika_yukle()
+    kritik_sayisi = int((cert_df["Durum"].isin(["🔴 Kritik", "🔴 Süresi Geçti"])).sum()) if not cert_df.empty else 0
+    yakinda_sayisi = int((cert_df["Durum"] == "🟡 Yakında").sum()) if not cert_df.empty else 0
+    gecerli_sayisi = int((cert_df["Durum"] == "🟢 Geçerli").sum()) if not cert_df.empty else 0
+    k1, k2, k3, k4 = st.columns(4)
     k1.metric("Toplam", len(cert_df))
-    k2.metric("Kritik", kritik_sayisi)
-    k3.metric("Yakında", yakinda_sayisi)
-    st.dataframe(cert_df, use_container_width=True)
+    k2.metric("🔴 Kritik/Süresi Geçti", kritik_sayisi)
+    k3.metric("🟡 Yakında", yakinda_sayisi)
+    k4.metric("🟢 Geçerli", gecerli_sayisi)
+    st.markdown("---")
+
+    if not cert_df.empty:
+        gosterim_df = cert_df[["Gemi", "Sertifika", "VerenKurum", "DuzenlemeTarihi", "Bitis", "KalanGun", "Durum", "Notlar"]]
+        st.dataframe(gosterim_df, use_container_width=True)
+    else:
+        st.info("Kayıtlı sertifika yok.")
+
+    with st.expander("♻️ Sertifika Yenile (bitiş tarihini güncelle)"):
+        if not cert_df.empty:
+            secim_etiketleri = [
+                str(r["id"]) + " — " + r["Gemi"] + " · " + r["Sertifika"] + " (" + r["Bitis"] + ")"
+                for _, r in cert_df.iterrows()
+            ]
+            secim = st.selectbox("Yenilenecek sertifika", secim_etiketleri, key="sert_yenile_sec")
+            yeni_bitis = st.date_input(
+                "Yeni Bitiş Tarihi", datetime.date.today() + datetime.timedelta(days=365), key="sert_yenile_tarih"
+            )
+            yenile_notlar = st.text_input("Not (opsiyonel)", key="sert_yenile_not")
+            if st.button("Yenile", key="sert_yenile_btn"):
+                cert_id = int(secim.split(" — ")[0])
+                run(
+                    "UPDATE certificates SET bitis=?, duzenleme_tarihi=?, notlar=? WHERE id=?",
+                    (str(yeni_bitis), str(datetime.date.today()), yenile_notlar, cert_id),
+                )
+                st.success("✅ Sertifika yenilendi.")
+                st.rerun()
+        else:
+            st.caption("Yenilenecek sertifika kaydı yok.")
+
+    with st.expander("➕ Yeni Sertifika Ekle"):
+        with st.form("yeni_sertifika_form"):
+            c1, c2 = st.columns(2)
+            with c1:
+                gemi = st.selectbox("Gemi", fleet_df["Gemi"].tolist(), key="yeni_sert_gemi")
+                sertifika = st.text_input("Sertifika Adı")
+                veren_kurum = st.text_input("Veren Kurum (Class/Bayrak)")
+            with c2:
+                duzenleme_tarihi = st.date_input("Düzenleme Tarihi", datetime.date.today(), key="yeni_sert_duzenleme")
+                bitis = st.date_input(
+                    "Bitiş Tarihi", datetime.date.today() + datetime.timedelta(days=365), key="yeni_sert_bitis"
+                )
+            notlar = st.text_area("Notlar")
+            if st.form_submit_button("Kaydet") and sertifika:
+                run(
+                    "INSERT INTO certificates(gemi,sertifika,veren_kurum,duzenleme_tarihi,bitis,notlar) VALUES (?,?,?,?,?,?)",
+                    (gemi, sertifika, veren_kurum, str(duzenleme_tarihi), str(bitis), notlar),
+                )
+                st.success("✅ Sertifika eklendi.")
+                st.rerun()
 
 elif menu == "🛒 Satınalma":
     st.subheader("🛒 Satınalma Talepleri")
@@ -605,7 +703,7 @@ elif menu == "⚡ Megger Kayıtları":
 
 elif menu == "📄 Raporlama":
     st.subheader("📄 Excel Raporlama")
-    rapor_tipi = st.selectbox("Rapor Tipi", ["Filo Listesi", "Satınalma", "Megger Kayıtları", "Arızalar (Açık)"])
+    rapor_tipi = st.selectbox("Rapor Tipi", ["Filo Listesi", "Satınalma", "Megger Kayıtları", "Arızalar (Açık)", "Sertifika & Survey"])
     if rapor_tipi == "Filo Listesi":
         df_rapor = fleet_df
     elif rapor_tipi == "Satınalma":
@@ -614,6 +712,10 @@ elif menu == "📄 Raporlama":
             df_rapor = pd.DataFrame([{"Not": "Kayit yok"}])
     elif rapor_tipi == "Megger Kayıtları":
         df_rapor = df_from("SELECT * FROM megger ORDER BY id DESC")
+        if df_rapor.empty:
+            df_rapor = pd.DataFrame([{"Not": "Kayit yok"}])
+    elif rapor_tipi == "Sertifika & Survey":
+        df_rapor = sertifika_yukle()
         if df_rapor.empty:
             df_rapor = pd.DataFrame([{"Not": "Kayit yok"}])
     else:
