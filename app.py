@@ -181,9 +181,7 @@ def init_db():
             ("M/V DENIZ STAR", "1071472", "General Cargo", "8300", "6641", "Liberia", "2025", "142 m", "Tolga ERDOĞAN", "2026-01-05", "2026-10-05"),
             ("M/V BLACKSEA STAR", "1114901", "General Cargo", "8330", "6732", "Liberia", "2025", "142 m", "Yusuf KURT", "2026-02-20", "2026-11-20"),
             ("M/V SAPHIRA", "7924425", "Live Stock", "12900", "38988", "Antigua-Barbuda", "1995", "185,82 m", "Murat AVCİ", "2025-04-10", "2026-04-10"),
-            # Not: orijinal arıza listesinde geçen M/V BOSPHORUS filo tablosunda yoktu, tutarlılık için ekleniyor
-            ("M/V BOSPHORUS", "9000001", "Tanker", "45000", "27000", "Malta", "2010", "180 m", "Deniz KARA", "2025-09-01", "2026-09-01"),
-        ]
+    
         cur.executemany("INSERT INTO ships VALUES (?,?,?,?,?,?,?,?,?,?,?)", seed_ships)
 
         seed_faults = [
